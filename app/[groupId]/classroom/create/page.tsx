@@ -6,17 +6,19 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useApiMutation } from "@/hooks/use-api-mutation";
-import { useAction } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, use } from "react";
 
 interface CreateCourseProps {
-    params: {
+    params: Promise<{
         groupId: Id<"groups">;
-    }
+    }>;
 }
 
-const CreateCourse = ({ params }: CreateCourseProps) => {
+const CreateCourse = ({
+    params
+}: CreateCourseProps) => {
+    const { groupId } = use(params);
     const router = useRouter();
     const {
         mutate: create,
@@ -29,11 +31,11 @@ const CreateCourse = ({ params }: CreateCourseProps) => {
         const courseId = await create({
             title,
             description,
-            groupId: params.groupId
+            groupId
         });
         setTitle("");
         setDescription("");
-        router.push(`/${params.groupId}/classroom/${courseId}`);
+        router.push(`/${groupId}/classroom/${courseId}`);
     }
 
 

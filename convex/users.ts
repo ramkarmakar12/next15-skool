@@ -7,7 +7,7 @@ export const store = mutation({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called storeUser without authenticated user");
+            return null;
         }
 
         // check if user is already stored
@@ -39,7 +39,7 @@ export const currentUser = query({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called selectGPT without authenticated user");
+            return null;
         }
 
         return await ctx.db
@@ -59,7 +59,7 @@ export const addToGroup = mutation({
     handler: async (ctx, { email, groupId }) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called addToGroup without authenticated user");
+            return null;
         }
 
         const currentUser = await ctx.db
@@ -69,18 +69,17 @@ export const addToGroup = mutation({
             .unique();
 
         if (!currentUser) {
-            throw new Error("User not found!");
+            return null;
         }
 
         const group = await ctx.db.get(groupId);
 
         if (!group) {
-            throw new Error("Group not found!");
+            return null;
         }
 
         if (currentUser._id !== group.ownerId) {
-            return;
-            throw new Error("User is not the owner of the group!");
+            return null;
         }
 
         const newUser = await ctx.db
@@ -89,7 +88,7 @@ export const addToGroup = mutation({
             .unique();
 
         if (!newUser) {
-            throw new Error("User not found!");
+            return null;
         }
 
         await ctx.db.insert("userGroups", {

@@ -60,7 +60,7 @@ export const list = query({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called storeUser without authenticated user");
+            return [];
         }
 
         const user = await ctx.db
@@ -70,7 +70,7 @@ export const list = query({
             .unique();
 
         if (user === null) {
-            throw new Error("User not stored in database.");
+            return [];
         }
 
         const userGroups = await ctx.db
@@ -118,7 +118,7 @@ export const listAll = query({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called storeUser without authenticated user");
+            return [];
         }
 
         const groups = await ctx.db.query("groups").collect();

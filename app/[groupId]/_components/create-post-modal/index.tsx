@@ -73,7 +73,7 @@ export const CreatePostModal = ({
                     <div className="flex">
                         <DialogClose asChild>
                             <Button
-                                className="w-full"
+                                className="w-1/2"
                                 variant={"secondary"}
                             >
                                 Cancel
@@ -83,7 +83,7 @@ export const CreatePostModal = ({
                             <Button
                                 onClick={handlePost}
                                 disabled={createPostPending}
-                                className="w-full"
+                                className="w-1/2"
                                 onKeyDown={handleKeyDown}
                             >
                                 Create

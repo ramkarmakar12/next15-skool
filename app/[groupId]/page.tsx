@@ -8,6 +8,7 @@ import { GroupNavbar } from "./_components/group-navbar";
 import { CreatePostModal } from "./_components/create-post-modal";
 import { AboutSide } from "@/components/about-side";
 import { Post } from "./_components/post-modal";
+import React from "react";
 
 interface ChatPageProps {
     params: {
@@ -16,10 +17,14 @@ interface ChatPageProps {
 }
 
 const Community = ({ params }: ChatPageProps) => {
-    const group = useQuery(api.groups.get, { id: params.groupId });
+    // Properly type the unwrapped params
+    const unwrappedParams = React.use(params) as ChatPageProps['params'];
+    const groupId = unwrappedParams.groupId;
+    
+    const group = useQuery(api.groups.get, { id: groupId });
     const currentUser = useQuery(api.users.currentUser, {});
     const router = useRouter();
-    const posts = useQuery(api.posts.list, { groupId: params.groupId });
+    const posts = useQuery(api.posts.list, { groupId });
 
     if (group === undefined) {
         return <div>Loading...</div>;
@@ -31,7 +36,7 @@ const Community = ({ params }: ChatPageProps) => {
     }
 
     const handleEdit = () => {
-        router.push(`/${params.groupId}/edit`);
+        router.push(`/${groupId}/edit`);
     }
 
     const membersText = group.memberNumber === 1 ? "Member" : "Members";
@@ -43,7 +48,7 @@ const Community = ({ params }: ChatPageProps) => {
     return (
         <div className="flex w-full h-full py-12 space-x-5">
             <div className="w-full">
-                <CreatePostModal groupId={params.groupId} />
+                <CreatePostModal groupId={groupId} />
                 <div className="space-y-12 flex flex-col">
                     {posts.map((post) => (
                         <Post key={post._id} post={post} />

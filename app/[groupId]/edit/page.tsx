@@ -2,14 +2,14 @@
 
 import { Loading } from "@/components/auth/loading";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { NameEditor } from "./_components/name-editor";
 import { DescriptionEditor } from "./_components/description-editor";
+import { use } from 'react';
 
 interface EditProps {
     params: {
@@ -20,7 +20,9 @@ interface EditProps {
 const EditPage = ({
     params
 }: EditProps) => {
-    const group = useQuery(api.groups.get, { id: params.groupId });
+    
+    const { groupId } = use(params);
+    const group = useQuery(api.groups.get, { id: groupId });
     const currentUser = useQuery(api.users.currentUser, {});
     const router = useRouter();
 
@@ -34,7 +36,7 @@ const EditPage = ({
     }
 
     if (currentUser._id !== group.ownerId) {
-        router.push(`/${params.groupId}`);
+        router.push(`/${groupId}`);
     }
 
     const membersText = group.memberNumber === 1 ? "Member" : "Members";
@@ -57,7 +59,7 @@ const EditPage = ({
                 )}
                 <DescriptionEditor
                     editable={currentUser._id === group.ownerId}
-                    groupId={params.groupId}
+                    groupId={groupId}
                     className=""
                     initialContent={group.description}
                 />
@@ -67,7 +69,7 @@ const EditPage = ({
                 <p className="flex font-light text-xs items-center text-neutral-400 gap-x-2"><Lock className="w-4 h-4" /> Private group</p>
                 <p>{group.shortDescription}</p>
                 <p className="text-neutral-400">{group.memberNumber} {membersText}</p>
-                <Button onClick={() => router.push(`/${params.groupId}`)} className="w-full">Preview</Button>
+                <Button onClick={() => router.push(`/${groupId}`)} className="w-full">Preview</Button>
             </div>
         </div>
     );
