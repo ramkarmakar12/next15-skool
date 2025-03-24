@@ -1,7 +1,7 @@
 "use client";
 
 import { Doc, Id } from "@/convex/_generated/dataModel";
-import { BookCheck, CaseSensitive, ChevronRight, ChevronsRight, Component, Fullscreen, Pen, Plus, Trash2 } from "lucide-react";
+import { BookCheck, CaseSensitive, Component, Fullscreen, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -11,22 +11,24 @@ import { Input } from "@/components/ui/input";
 import { LessonEditorView } from "./_components/lesson-editor-view";
 import { ModuleNameEditor } from "./_components/module-name-editor";
 
-interface CourseEditPageProps {
-    params: {
-        groupId: Id<"groups">;
-        courseId: Id<"courses">;
-    }
-};
-
-
-const CourseEditPage = ({ params }: CourseEditPageProps) => {
-    const course = useQuery(api.courses.get, { id: params.courseId });
+// Use a pattern that avoids direct property access on params
+export default function CourseEditPage({ 
+    params 
+}: { 
+    params: { groupId: string; courseId: string; } 
+}) {
+    // Extract and cast values before using them, treating params as an opaque object
+    const paramsObj = params;
+    const courseId = (paramsObj?.courseId || "") as unknown as Id<"courses">;
+    const groupId = (paramsObj?.groupId || "") as unknown as Id<"groups">;
+    
+    const course = useQuery(api.courses.get, { id: courseId });
     const updateTitle = useMutation(api.courses.updateTitle);
     // const updateModuleTitle = useMutation(api.modules.updateTitle);
-    const updateDescription = useMutation(api.courses.updateDescription);
+    // const updateDescription = useMutation(api.courses.updateDescription);
 
     const currentUser = useQuery(api.users.currentUser, {});
-    const group = useQuery(api.groups.get, { id: params.groupId });
+    const group = useQuery(api.groups.get, { id: groupId });
     const router = useRouter();
     const [selectedLesson, setSelectedLesson] = useState<Doc<"lessons">>();
     const addLesson = useMutation(api.lessons.add);
@@ -34,22 +36,15 @@ const CourseEditPage = ({ params }: CourseEditPageProps) => {
     const removeLesson = useMutation(api.lessons.remove);
     const removeModule = useMutation(api.modules.remove);
 
-    const [moduleTitle, setModuleTitle] = useState("");
-
     if (!course || Array.isArray(course)) return <div>Loading...</div>;
 
     const handleEditClick = () => {
-        router.push(`/${params.groupId}/classroom/${course._id}`);
+        router.push(`/${groupId}/classroom/${course._id}`);
     }
 
     const handleTitleUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
         updateTitle({ title: e.target.value, id: course._id })
     }
-
-    // const handleModuleTitleUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    //     console.log(e.target.value);
-    //     updateModuleTitle({ title: e.target.value, id: course._id })
-    // }
 
     const handleAddLesson = (moduleId: Id<"modules">) => {
         addLesson({ moduleId: moduleId });
@@ -138,5 +133,3 @@ const CourseEditPage = ({ params }: CourseEditPageProps) => {
         </div >
     );
 }
-
-export default CourseEditPage;

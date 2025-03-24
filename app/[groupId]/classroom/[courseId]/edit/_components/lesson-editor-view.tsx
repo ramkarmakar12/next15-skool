@@ -3,7 +3,6 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { CaseSensitive, Text } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { useApiMutation } from "@/hooks/use-api-mutation";
@@ -53,7 +52,19 @@ export const LessonEditorView = ({ lesson }: LessonEditorViewProps) => {
                 <p className="text-xs text-zinc-500">Example: https://www.youtube.com/embed/TalBbvAhdIY?si=lFIwtjTGxE5AgZHe</p>
             </div>
             <AspectRatio ratio={16 / 9}>
-                <iframe width="100%" height="100%" src={videoUrl} title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
+                {videoUrl ? (
+                    <iframe 
+                        width="100%" 
+                        height="100%" 
+                        src={videoUrl} 
+                        title="YouTube video player" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    ></iframe>
+                ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
+                        No video URL provided
+                    </div>
+                )}
             </AspectRatio>
             <div className="flex items-center mb-6 space-x-3 mt-3">
                 <Text className="text-zinc-500 mt-3" />
