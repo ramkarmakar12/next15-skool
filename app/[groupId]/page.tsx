@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { CreatePostModal } from "./_components/create-post-modal";
 import { AboutSide } from "@/components/about-side";
 import { Post } from "./_components/post-modal";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 interface ChatPageProps {
     params: {
@@ -22,67 +22,62 @@ const isValidConvexId = (id: string): boolean => {
     return /^[a-zA-Z0-9]{16,24}$/.test(id);
 };
 
-const Community = ({ params }: ChatPageProps) => {
+// Create an error boundary component
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+  
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+  
+    componentDidCatch(error, errorInfo) {
+        console.error("Error caught by boundary:", error, errorInfo);
+    }
+  
+    render() {
+        if (this.state.hasError) {
+            return <div>Something went wrong. Please try again.</div>;
+        }
+  
+        return this.props.children;
+    }
+}
+
+const CommunityContent = ({ groupId }) => {
     const router = useRouter();
-    // Properly type the unwrapped params
-    const unwrappedParams = React.use(params) as ChatPageProps['params'];
-    const groupId = unwrappedParams.groupId;
     
-    // Validate if the ID appears to be in the correct format
+    // Only validate the ID format
     const isIdValid = isValidConvexId(groupId as string);
     
-    // Always call hooks unconditionally, but pass a dummy id if the real one is invalid
-    // This avoids the validation error while still respecting React hook rules
-    const dummyId = isIdValid ? groupId : undefined;
-    
-    const group = useQuery(api.groups.get, { id: dummyId });
+    // Always query for data regardless of ID format
+    const group = useQuery(api.groups.get, { id: groupId });
     const currentUser = useQuery(api.users.currentUser, {});
-    const posts = useQuery(api.posts.list, { groupId: dummyId });
+    const posts = useQuery(api.posts.list, { groupId });
     
-    // Redirect if ID is invalid
-    useEffect(() => {
-        if (!isIdValid) {
-            router.push("/");
-        }
-    }, [isIdValid, router]);
-    
-    // Handle redirect for unauthenticated users
-    useEffect(() => {
-        if (currentUser === null && typeof window !== "undefined" && isIdValid) {
-            router.push("/sign-in?redirect=" + encodeURIComponent("/" + groupId));
-        }
-    }, [currentUser, groupId, router, isIdValid]);
-
-    // If ID is invalid, show loading while redirecting
-    if (!isIdValid) {
-        return <div>Redirecting...</div>;
-    }
-    
-    if (group === undefined || currentUser === undefined) {
-        return <div>Loading...</div>;
+    // Show loading state while data is being fetched
+    if (group === undefined) {
+        return <div>Loading group data...</div>;
     }
 
-    // If no authenticated user, show authentication required message
-    if (currentUser === null) {
+    // If group doesn't exist, show a message but don't redirect
+    if (group === null) {
         return (
             <div className="flex flex-col items-center justify-center h-screen">
                 <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-                    <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-                    <p className="mb-6">Please sign in to access this group.</p>
+                    <h2 className="text-2xl font-bold mb-4">Group Not Found</h2>
+                    <p className="mb-6">This group doesn't exist or has been deleted.</p>
                     <button 
-                        onClick={() => router.push("/sign-in?redirect=" + encodeURIComponent("/" + groupId))}
+                        onClick={() => router.push("/")}
                         className="w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600"
                     >
-                        Sign In
+                        Go Home
                     </button>
                 </div>
             </div>
         );
-    }
-
-    if (group === null) {
-        router.push("/");
-        return null;
     }
 
     const handleEdit = () => {
@@ -91,23 +86,30 @@ const Community = ({ params }: ChatPageProps) => {
 
     const membersText = group.memberNumber === 1 ? "Member" : "Members";
 
-    if (posts === undefined) {
-        return <div>Loading...</div>;
-    }
-
     return (
         <div className="flex w-full h-full py-12 space-x-5">
             <div className="w-full">
                 <CreatePostModal groupId={groupId} />
                 <div className="space-y-12 flex flex-col">
-                    {posts.map((post) => (
+                    {posts && posts.map((post) => (
                         <Post key={post._id} post={post} />
                     ))}
                 </div>
             </div>
             <AboutSide handleEdit={handleEdit} group={group} membersText={membersText} currentUser={currentUser} />
         </div>
-    )
+    );
+}
+
+const Community = ({ params }: ChatPageProps) => {
+    // Access params directly without using React.use
+    const groupId = params.groupId;
+    
+    return (
+        <ErrorBoundary>
+            <CommunityContent groupId={groupId} />
+        </ErrorBoundary>
+    );
 }
 
 export default Community;

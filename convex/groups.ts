@@ -97,8 +97,16 @@ export const list = query({
     args: {},
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
+        console.log("Identity:", identity ? "Authenticated" : "Not Authenticated");
+
         if (!identity) {
-            return [];
+            // Return public groups if no authentication
+            const publicGroups = await ctx.db
+                .query("groups")
+                .withIndex("by_isPublic", (q) => q.eq("isPublic", true))
+                .collect();
+            console.log("Public Groups (Unauthenticated):", publicGroups.length);
+            return publicGroups;
         }
 
         const user = await ctx.db
@@ -107,6 +115,7 @@ export const list = query({
                 q.eq("tokenIdentifier", identity.tokenIdentifier))
             .unique();
 
+        console.log("User found:", user ? "Yes" : "No");
         if (user === null) {
             return [];
         }
@@ -116,17 +125,31 @@ export const list = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // now get all groups that this user belongs to
-        const groups = userGroups.map(async (userGroup) => {
+        console.log("User Groups count:", userGroups.length);
+
+        // now get all groups that this user belongs to or are public
+        const groups = await Promise.all(userGroups.map(async (userGroup) => {
             const group = await ctx.db.get(userGroup.groupId);
             return group;
-        });
+        }));
 
-        const resolvedGroups = await Promise.all(groups);
+        const publicGroups = await ctx.db
+            .query("groups")
+            .withIndex("by_isPublic", (q) => q.eq("isPublic", true))
+            .collect();
 
-        const filteredGroups = resolvedGroups.filter(group => group !== null) as Doc<"groups">[];
+        console.log("Public Groups count:", publicGroups.length);
 
-        return filteredGroups;
+        const combinedGroups = [...groups, ...publicGroups];
+
+        const filteredGroups = combinedGroups.filter(group => group !== null) as Doc<"groups">[];
+        
+        // Remove duplicates
+        const uniqueGroups = Array.from(new Set(filteredGroups.map(g => g._id)))
+            .map(id => filteredGroups.find(g => g._id === id)!);
+
+        console.log("Total Unique Groups:", uniqueGroups.length);
+        return uniqueGroups;
     }
 });
 

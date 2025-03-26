@@ -72,30 +72,8 @@ export const PublicGroupsSection = () => {
 
     // Handle view community click with auth check
     const handleViewCommunity = (groupId: string) => {
-        if (isSignedIn) {
-            // If user is signed in, navigate directly to the group
-            router.push(`/${groupId}`);
-        } else {
-            // If user is not signed in, store the target location for after login
-            setRedirectTarget(`/${groupId}`);
-            
-            // Show a toast notification
-            toast.info("Please sign in to join the community", {
-                description: "You'll be redirected to the Community page.",
-                duration: 4000,
-                className: "z-50", // Ensure high z-index for visibility
-                style: {
-                    background: "#f0f9ff", // Light blue background
-                    border: "1px solid #0ea5e9", // Border matching the info color
-                    fontSize: "15px", // Slightly larger font
-                },
-                position: "top-center", // Force position to top-center regardless of global setting
-            });
-            
-            // Redirect to sign-in with return URL parameter to come back to homepage
-            // After login, the homepage will check localStorage and redirect accordingly
-            router.push(`/sign-in?redirect_url=${encodeURIComponent("/")}`);
-        }
+        // Direct navigation without auth check
+        router.push(`/${groupId}`);
     };
 
     if (publicGroups === undefined) {

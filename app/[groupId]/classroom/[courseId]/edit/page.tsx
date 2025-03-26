@@ -1,40 +1,61 @@
 "use client";
 
-import { Id } from "@/convex/_generated/dataModel";
-import { BookCheck, Component, Fullscreen, Plus, Trash2 } from "lucide-react";
-import React from "react";
-import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Id } from "@/convex/_generated/dataModel";
+import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
+import { BookCheck, Component, Fullscreen, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import React from "react";
 
-// ModuleNameEditor needs to be updated to work with courseModules
 interface ModuleNameEditorProps {
   name: string;
 }
 
-// Simple placeholder component until the proper editor is updated
 const ModuleNameEditor = ({ name }: ModuleNameEditorProps) => {
   return <span className="font-semibold">{name}</span>;
 };
 
-// Create a client component wrapper to handle the params
-function CourseEditPageContent({ groupId, courseId }: { groupId: string, courseId: string }) {
-    // Cast the parameters to the correct types
-    const typedCourseId = courseId as unknown as Id<"courses">;
-    const typedGroupId = groupId as unknown as Id<"groups">;
-    
-    // Use the new course API with courseId parameter
-    const course = useQuery(api.courses.get, { courseId: typedCourseId });
+// Create a properly typed error boundary component
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}
+
+class CourseEditErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: boolean }> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Error in course edit page:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+function CourseEditPageContent({ groupId, courseId }: { groupId: Id<"groups">, courseId: Id<"courses"> }) {
+    // Use the course API with id parameter
+    const course = useQuery(api.courses.get, { id: courseId });
     const updateCourse = useMutation(api.courses.update);
     
     const currentUser = useQuery(api.users.currentUser, {});
-    const group = useQuery(api.groups.get, { id: typedGroupId });
+    const group = useQuery(api.groups.get, { id: groupId });
     const router = useRouter();
     
-    // Use the new course modules API
-    const modules = useQuery(api.courseModules.list, { courseId: typedCourseId });
+    // Fix: Use courseModules instead of modules
+    const modules = useQuery(api.courseModules.list, { courseId });
     const addModule = useMutation(api.courseModules.create);
     const removeModule = useMutation(api.courseModules.remove);
 
@@ -47,19 +68,20 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: string, courseI
     }
 
     const handleEditClick = () => {
-        router.push(`/${typedGroupId}/classroom/${typedCourseId}`);
+        router.push(`/${groupId}/classroom/${courseId}`);
     }
 
     const handleTitleUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Fix: Use id instead of courseId for the update
         updateCourse({ 
-            courseId: typedCourseId,
+            id: courseId,
             name: e.target.value 
         });
     }
 
     const handleAddModule = () => {
         addModule({ 
-            courseId: typedCourseId,
+            courseId: courseId,
             title: "New Module" 
         });
     }
@@ -116,7 +138,7 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: string, courseI
                         <Button 
                             variant={"ghost"} 
                             className="w-full mt-4 flex space-x-2"
-                            onClick={() => router.push(`/${typedGroupId}/courses/${typedCourseId}`)}
+                            onClick={() => router.push(`/${groupId}/courses/${courseId}`)}
                         >
                             <Plus className="w-4 h-4" />
                             <p>Use New Course Builder</p>
@@ -131,37 +153,25 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: string, courseI
                 <Button 
                     variant={"default"} 
                     className="w-full mt-8"
-                    onClick={() => router.push(`/${typedGroupId}/courses/${typedCourseId}`)}
+                    onClick={() => router.push(`/${groupId}/courses/${courseId}`)}
                 >
-                    Go to New Course Builder
+                    Go to Course Builder
                 </Button>
-            </div>
-            <div className="flex-grow md:w-3/4 rounded-xl bg-gray-50 shadow-md p-4">
-                <div className="h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">
-                        Content editing has moved to the new course builder. Please click on &quot;Go to New Course Builder&quot; to use the updated interface.
-                    </p>
-                </div>
             </div>
         </div>
     );
 }
 
-// Use the Next.js 14 pattern with React.use() as recommended
-export default function CourseEditPage(props: { 
-    params: { groupId: string; courseId: string; }
-}) {
-    // We need to use this try-catch pattern to handle the params Promise properly
-    try {
-        // This handles the Promise nature of params in Next.js 14
-        const resolvedParams = React.use(props.params);
-        return <CourseEditPageContent 
-            groupId={resolvedParams.groupId} 
-            courseId={resolvedParams.courseId} 
-        />;
-    } catch (error) {
-        // This handles any error during params resolution
-        console.error("Error resolving params:", error);
-        return <div>Error loading page parameters</div>;
-    }
+// Main component that properly unwraps params with React.use()
+export default function CourseEditPage({ params }: { params: { groupId: string, courseId: string } }) {
+    // Properly unwrap params with React.use()
+    const unwrappedParams = React.use(params);
+    const groupId = unwrappedParams.groupId as Id<"groups">;
+    const courseId = unwrappedParams.courseId as Id<"courses">;
+    
+    return (
+        <CourseEditErrorBoundary fallback={<div>Something went wrong loading the course editor. Please try again.</div>}>
+            <CourseEditPageContent groupId={groupId} courseId={courseId} />
+        </CourseEditErrorBoundary>
+    );
 }
