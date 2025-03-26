@@ -5,6 +5,7 @@ import { useApiMutation } from "@/hooks/use-api-mutation";
 import { useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { Trash2 } from "lucide-react";
+import { MediaDisplay } from "@/components/media-display";
 
 interface CommentCardProps {
     comment: Doc<"comments">;
@@ -36,12 +37,23 @@ export const CommentCard = ({ comment, author }: CommentCardProps) => {
                 <AvatarImage src={author.profileUrl} />
                 <AvatarFallback>{author.name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex-1">
                 <div className="flex space-x-3">
                     <p className="font-semibold">{author.name}</p>
                     <p className="font-normal text-gray-500">{timeAgo}</p>
                 </div>
                 <p>{comment.content}</p>
+                
+                {/* Display media attachments if present */}
+                {comment.mediaUrls && comment.mediaTypes && comment.mediaUrls.length > 0 && (
+                    <div className="mt-2">
+                        <MediaDisplay 
+                            mediaUrls={comment.mediaUrls} 
+                            mediaTypes={comment.mediaTypes}
+                            size="sm"
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -2,9 +2,8 @@
 
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { ChevronDown, Compass, Plus, Sparkles, Zap } from "lucide-react";
+import { ChevronDown, Compass, Plus } from "lucide-react";
 import {
-  ClerkProvider,
   SignInButton,
   SignUpButton,
   SignedIn,
@@ -20,15 +19,26 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Loading } from "../auth/loading";
 import { Logo } from "../logo";
+
+// Helper function to check if a string looks like a valid Convex ID
+const isValidConvexId = (id: string | string[] | undefined): boolean => {
+  // Convex IDs follow a specific pattern - this is a simple check
+  // We're just making sure it's not a route name like "sign-in"
+  return typeof id === 'string' && id.length > 8 && !id.includes('/');
+};
 
 export const SelectModal = () => {
   const currentUser = useQuery(api.users.currentUser, {});
   const { groupId } = useParams();
-  const group = useQuery(api.groups.get, { id: groupId as Id<"groups"> });
   const groups = useQuery(api.groups.list);
   const router = useRouter();
+  
+  // Always call useQuery, but conditionally pass undefined to "skip" the query when ID is invalid
+  // This follows React hooks rules while preventing invalid ID errors
+  const safeGroupId = isValidConvexId(groupId) ? (groupId as Id<"groups">) : undefined;
+  // Use the skipQuery pattern - pass undefined to skip execution but keep the hook call
+  const group = useQuery(api.groups.get, safeGroupId ? { id: safeGroupId } : undefined);
 
   const [openSelect, setOpenSelect] = useState(false);
 
@@ -65,7 +75,7 @@ export const SelectModal = () => {
     );
   }
 
-  if (group === undefined) {
+  if (group === undefined && isValidConvexId(groupId)) {
     return <div>Loading...</div>;
   }
 

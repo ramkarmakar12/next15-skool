@@ -3,7 +3,11 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 
 export const create = mutation({
-    args: { name: v.string(), description: v.optional(v.string()) },
+    args: { 
+        name: v.string(), 
+        description: v.optional(v.string()),
+        isPublic: v.optional(v.boolean())
+    },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
@@ -30,10 +34,12 @@ export const create = mutation({
             ownerId: user._id,
             price: 0,
             memberNumber: 1,
+            isPublic: args.isPublic ?? false, // Set isPublic flag with default false
             endsOn: farFutureDate, // Add a default far-future expiration date
         });
 
-        const userGroup = await ctx.db.insert("userGroups", {
+        // Add the creator as a member of the group
+        await ctx.db.insert("userGroups", {
             userId: user._id,
             groupId: groupId,
         });
@@ -46,11 +52,43 @@ export const create = mutation({
 export const get = query({
     args: { id: v.optional(v.id("groups")) },
     handler: async (ctx, { id }) => {
+        // Check if ID is provided
         if (!id) {
             return null;
         }
-        const group = await ctx.db.get(id);
-        return group;
+        
+        try {
+            const group = await ctx.db.get(id);
+            
+            // If group is public, return it regardless of authentication
+            if (group && group.isPublic === true) {
+                return group;
+            }
+            
+            // For private groups, check authentication
+            const identity = await ctx.auth.getUserIdentity();
+            if (!identity) {
+                return null; // Return null instead of throwing error when not authenticated
+            }
+            
+            // Now that we have a user, let's check if they're a member of this group
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_token", (q) =>
+                    q.eq("tokenIdentifier", identity.tokenIdentifier))
+                .unique();
+                
+            if (!user) {
+                return null;
+            }
+            
+            // Return the group (may be null if it doesn't exist)
+            return group;
+        } catch (error) {
+            // Handle any errors (like invalid ID format)
+            console.error("Error retrieving group:", error);
+            return null;
+        }
     },
 });
 
@@ -127,6 +165,111 @@ export const listAll = query({
     }
 });
 
+// List public groups that are available to all users, even without authentication
+export const listPublicGroups = query({
+    args: {},
+    handler: async (ctx) => {
+        // Get all groups marked as public
+        const publicGroups = await ctx.db
+            .query("groups")
+            .withIndex("by_isPublic", (q) => q.eq("isPublic", true))
+            .collect();
+
+        return publicGroups;
+    }
+});
+
+// Join a public group (requires authentication)
+export const joinPublicGroup = mutation({
+    args: { groupId: v.id("groups") },
+    handler: async (ctx, { groupId }) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            return null;
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (user === null) {
+            return null;
+        }
+
+        // Verify that the group exists and is public
+        const group = await ctx.db.get(groupId);
+        if (!group || group.isPublic !== true) {
+            return null;
+        }
+
+        // Check if the user is already a member
+        const existingMembership = await ctx.db
+            .query("userGroups")
+            .withIndex("by_userId", (q) => 
+                q.eq("userId", user._id))
+            .filter(q => q.eq(q.field("groupId"), groupId))
+            .unique();
+
+        if (existingMembership) {
+            return { success: true, alreadyMember: true };
+        }
+
+        // Add the user to the group
+        await ctx.db.insert("userGroups", {
+            userId: user._id,
+            groupId: groupId,
+        });
+
+        // Increment the member count
+        await ctx.db.patch(groupId, {
+            memberNumber: group.memberNumber + 1,
+        });
+
+        return { success: true, alreadyMember: false };
+    }
+});
+
+// Update group's public status
+export const updatePublicStatus = mutation({
+    args: { id: v.id("groups"), isPublic: v.boolean() },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+
+        if (!identity) {
+            throw new Error("Unauthorized");
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_token", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        // Get the group
+        const group = await ctx.db.get(args.id);
+        if (!group) {
+            throw new Error("Group not found");
+        }
+
+        // Only group owner can change the public status
+        if (group.ownerId !== user._id) {
+            throw new Error("Only the group owner can update the public status");
+        }
+
+        // Update the public status
+        await ctx.db.patch(args.id, {
+            isPublic: args.isPublic,
+        });
+
+        return { success: true };
+    },
+});
 
 export const updateName = mutation({
     args: { id: v.id("groups"), name: v.string() },
@@ -156,7 +299,7 @@ export const updateName = mutation({
 });
 
 export const updateDescription = mutation({
-    args: { id: v.id("groups"), descripton: v.string() },
+    args: { id: v.id("groups"), description: v.string() },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
 
@@ -164,7 +307,7 @@ export const updateDescription = mutation({
             throw new Error("Unauthorized");
         }
 
-        const description = args.descripton.trim();
+        const description = args.description.trim();
 
         if (!description) {
             throw new Error("Description is required");
@@ -175,7 +318,7 @@ export const updateDescription = mutation({
         }
 
         const group = await ctx.db.patch(args.id, {
-            description: args.descripton,
+            description: args.description,
         });
 
         return group;

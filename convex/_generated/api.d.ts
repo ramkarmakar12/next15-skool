@@ -14,11 +14,16 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as comments from "../comments.js";
+import type * as courseContents from "../courseContents.js";
+import type * as courseModules from "../courseModules.js";
 import type * as courses from "../courses.js";
+import type * as email from "../email.js";
 import type * as groups from "../groups.js";
 import type * as lessons from "../lessons.js";
 import type * as likes from "../likes.js";
+import type * as media from "../media.js";
 import type * as modules from "../modules.js";
+import type * as polls from "../polls.js";
 import type * as posts from "../posts.js";
 import type * as stripe from "../stripe.js";
 import type * as users from "../users.js";
@@ -33,11 +38,16 @@ import type * as users from "../users.js";
  */
 declare const fullApi: ApiFromModules<{
   comments: typeof comments;
+  courseContents: typeof courseContents;
+  courseModules: typeof courseModules;
   courses: typeof courses;
+  email: typeof email;
   groups: typeof groups;
   lessons: typeof lessons;
   likes: typeof likes;
+  media: typeof media;
   modules: typeof modules;
+  polls: typeof polls;
   posts: typeof posts;
   stripe: typeof stripe;
   users: typeof users;

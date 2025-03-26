@@ -49,20 +49,55 @@ export const list = query({
             })
         );
 
-        const postsWithAuthorsAndCommentsAndLikes = await Promise.all(
+        const postsWithAllData = await Promise.all(
             postsWithAuthorsAndComments.map(async (post) => {
                 const likes = await ctx.db
                     .query("likes")
                     .withIndex("by_postId", (q) => q.eq("postId", post._id))
                     .collect();
 
+                // Fetch poll data if this post has an associated poll
+                let pollData = null;
+                if (post.pollId !== null && post.pollId !== undefined) {
+                    const poll = await ctx.db.get(post.pollId);
+                    if (poll) {
+                        // Get poll options
+                        const options = await ctx.db
+                            .query("pollOptions")
+                            .withIndex("by_pollId", (q) => q.eq("pollId", post.pollId!))
+                            .collect();
+                        
+                        // Count votes for each option
+                        const optionsWithVoteCounts = await Promise.all(
+                            options.map(async (option) => {
+                                const votes = await ctx.db
+                                    .query("pollVotes")
+                                    .withIndex("by_optionId", (q) => q.eq("optionId", option._id))
+                                    .collect();
+                                
+                                return {
+                                    ...option,
+                                    voteCount: votes.length
+                                };
+                            })
+                        );
+                        
+                        pollData = {
+                            ...poll,
+                            options: optionsWithVoteCounts
+                        };
+                    }
+                }
+
                 return {
                     ...post,
                     likes,
+                    pollData
                 };
             })
         );
-        return postsWithAuthorsAndCommentsAndLikes;
+
+        return postsWithAllData;
     }
 });
 
@@ -72,11 +107,14 @@ export const create = mutation({
         title: v.string(),
         content: v.string(),
         groupId: v.id("groups"),
+        mediaUrls: v.optional(v.array(v.string())),
+        mediaTypes: v.optional(v.array(v.string())),
+        pollId: v.optional(v.id("polls")),
     },
-    handler: async (ctx, { title, content, groupId }) => {
+    handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Called createGroup without authenticated user");
+            return null;
         }
 
         const user = await ctx.db
@@ -86,14 +124,17 @@ export const create = mutation({
             .unique();
 
         if (!user) {
-            throw new Error("User not found");
+            return null;
         }
 
         const postId = await ctx.db.insert("posts", {
-            title,
-            content,
+            title: args.title,
+            content: args.content,
             authorId: user._id,
-            groupId,
+            groupId: args.groupId,
+            mediaUrls: args.mediaUrls,
+            mediaTypes: args.mediaTypes,
+            pollId: args.pollId,
         });
 
         return postId;
@@ -105,6 +146,10 @@ export const create = mutation({
 export const remove = mutation({
     args: { id: v.id("posts") },
     handler: async (ctx, { id }) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            return null;
+        }
 
         // delete all comments
         const comments = await ctx.db
@@ -126,19 +171,53 @@ export const remove = mutation({
             await ctx.db.delete(like._id);
         }));
 
+        // Get the post to check if it has a poll
+        const post = await ctx.db.get(id);
+        if (post && post.pollId) {
+            // Delete all poll votes
+            const votes = await ctx.db
+                .query("pollVotes")
+                .withIndex("by_pollId", (q) => q.eq("pollId", post.pollId!))
+                .collect();
+            
+            await Promise.all(votes.map(async (vote) => {
+                await ctx.db.delete(vote._id);
+            }));
+            
+            // Delete all poll options
+            const options = await ctx.db
+                .query("pollOptions")
+                .withIndex("by_pollId", (q) => q.eq("pollId", post.pollId!))
+                .collect();
+            
+            await Promise.all(options.map(async (option) => {
+                await ctx.db.delete(option._id);
+            }));
+            
+            // Delete the poll itself
+            await ctx.db.delete(post.pollId!);
+        }
+
         // delete the post
         await ctx.db.delete(id);
+        
+        return { success: true };
     },
 });
 
 
 export const updateContent = mutation({
-    args: { id: v.id("posts"), content: v.string() },
+    args: { 
+        id: v.id("posts"), 
+        content: v.string(),
+        mediaUrls: v.optional(v.array(v.string())),
+        mediaTypes: v.optional(v.array(v.string())),
+    },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
 
         if (!identity) {
-            throw new Error("Unauthorized");
+            return null;
         }
 
         const content = args.content.trim();
@@ -148,12 +227,23 @@ export const updateContent = mutation({
         }
 
         if (content.length > 40000) {
-            throw new Error("Content is too long!")
+            throw new Error("Content is too long!");
         }
 
-        const post = await ctx.db.patch(args.id, {
+        const updateData: Partial<{ content: string; mediaUrls: string[]; mediaTypes: string[] }> = {
             content: args.content,
-        });
+        };
+
+        // Only update media fields if provided
+        if (args.mediaUrls !== undefined) {
+            updateData.mediaUrls = args.mediaUrls;
+        }
+
+        if (args.mediaTypes !== undefined) {
+            updateData.mediaTypes = args.mediaTypes;
+        }
+
+        const post = await ctx.db.patch(args.id, updateData);
 
         return post;
     },

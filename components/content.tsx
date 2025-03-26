@@ -2,7 +2,6 @@
 
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Block } from "@blocknote/core";
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
@@ -10,8 +9,6 @@ import "@blocknote/react/style.css";
 import { useMutation } from "convex/react";
 import { AlertOctagon } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
-import { ScrollArea } from "./ui/scroll-area";
 
 interface ContentProps {
     postId: Id<"posts">;
@@ -28,11 +25,22 @@ export const Content = ({
 }: ContentProps) => {
     const update = useMutation(api.posts.updateContent);
 
+    // Safely parse the initialContent
+    const getInitialContent = () => {
+        if (!initialContent) return undefined;
+        
+        try {
+            // Try to parse the content as JSON
+            return JSON.parse(initialContent);
+        } catch (error) {
+            // If parsing fails, it might be a plain text content
+            console.warn("Failed to parse content as JSON. Using empty editor.", error);
+            return undefined;
+        }
+    };
+
     const editor = useCreateBlockNote({
-        initialContent:
-            initialContent
-                ? JSON.parse(initialContent)
-                : undefined,
+        initialContent: getInitialContent(),
     });
 
     const handleChange = () => {

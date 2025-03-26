@@ -1,59 +1,71 @@
 "use client";
 
-import { Doc, Id } from "@/convex/_generated/dataModel";
-import { BookCheck, CaseSensitive, Component, Fullscreen, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Id } from "@/convex/_generated/dataModel";
+import { BookCheck, Component, Fullscreen, Plus, Trash2 } from "lucide-react";
+import React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { LessonEditorView } from "./_components/lesson-editor-view";
-import { ModuleNameEditor } from "./_components/module-name-editor";
 
-// Use a pattern that avoids direct property access on params
-export default function CourseEditPage({ 
-    params 
-}: { 
-    params: { groupId: string; courseId: string; } 
-}) {
-    // Extract and cast values before using them, treating params as an opaque object
-    const paramsObj = params;
-    const courseId = (paramsObj?.courseId || "") as unknown as Id<"courses">;
-    const groupId = (paramsObj?.groupId || "") as unknown as Id<"groups">;
+// ModuleNameEditor needs to be updated to work with courseModules
+interface ModuleNameEditorProps {
+  name: string;
+}
+
+// Simple placeholder component until the proper editor is updated
+const ModuleNameEditor = ({ name }: ModuleNameEditorProps) => {
+  return <span className="font-semibold">{name}</span>;
+};
+
+// Create a client component wrapper to handle the params
+function CourseEditPageContent({ groupId, courseId }: { groupId: string, courseId: string }) {
+    // Cast the parameters to the correct types
+    const typedCourseId = courseId as unknown as Id<"courses">;
+    const typedGroupId = groupId as unknown as Id<"groups">;
     
-    const course = useQuery(api.courses.get, { id: courseId });
-    const updateTitle = useMutation(api.courses.updateTitle);
-    // const updateModuleTitle = useMutation(api.modules.updateTitle);
-    // const updateDescription = useMutation(api.courses.updateDescription);
-
+    // Use the new course API with courseId parameter
+    const course = useQuery(api.courses.get, { courseId: typedCourseId });
+    const updateCourse = useMutation(api.courses.update);
+    
     const currentUser = useQuery(api.users.currentUser, {});
-    const group = useQuery(api.groups.get, { id: groupId });
+    const group = useQuery(api.groups.get, { id: typedGroupId });
     const router = useRouter();
-    const [selectedLesson, setSelectedLesson] = useState<Doc<"lessons">>();
-    const addLesson = useMutation(api.lessons.add);
-    const addModule = useMutation(api.modules.add);
-    const removeLesson = useMutation(api.lessons.remove);
-    const removeModule = useMutation(api.modules.remove);
+    
+    // Use the new course modules API
+    const modules = useQuery(api.courseModules.list, { courseId: typedCourseId });
+    const addModule = useMutation(api.courseModules.create);
+    const removeModule = useMutation(api.courseModules.remove);
 
-    if (!course || Array.isArray(course)) return <div>Loading...</div>;
+    if (course === undefined || modules === undefined) {
+        return <div>Loading...</div>;
+    }
+
+    if (course === null) {
+        return <div>Course not found</div>;
+    }
 
     const handleEditClick = () => {
-        router.push(`/${groupId}/classroom/${course._id}`);
+        router.push(`/${typedGroupId}/classroom/${typedCourseId}`);
     }
 
     const handleTitleUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
-        updateTitle({ title: e.target.value, id: course._id })
+        updateCourse({ 
+            courseId: typedCourseId,
+            name: e.target.value 
+        });
     }
 
-    const handleAddLesson = (moduleId: Id<"modules">) => {
-        addLesson({ moduleId: moduleId });
-        console.log("Add lesson");
+    const handleAddModule = () => {
+        addModule({ 
+            courseId: typedCourseId,
+            title: "New Module" 
+        });
     }
 
-    const handleAddModule = (courseId: Id<"courses">) => {
-        addModule({ courseId: courseId });
-        console.log("Add module");
+    const handleRemoveModule = (moduleId: Id<"courseModules">) => {
+        removeModule({ moduleId });
     }
 
     const isOwner = currentUser?._id === group?.ownerId;
@@ -71,65 +83,85 @@ export default function CourseEditPage({
                 )}
                 <div className="flex items-center mb-6 space-x-3">
                     <BookCheck />
-                    {/* <h1 className="font-bold capitalize text-2xl">{course.title}</h1> */}
-                    <Input value={course.title} onBlur={handleTitleUpdate} onChange={handleTitleUpdate} />
+                    <Input value={course.name} onBlur={handleTitleUpdate} onChange={handleTitleUpdate} />
                 </div>
 
-                {course.modules.map((module) => (
+                {modules.map((module) => (
                     <div key={module._id} className="mb-8">
                         <div className="flex items-center mb-6 space-x-3">
                             <Component />
                             <ModuleNameEditor
-                                id={module._id}
                                 name={module.title}
                                 key={module._id}
                             />
                             <Button
                                 variant={"secondary"}
                                 className="text-red-300"
-                                onClick={() => removeModule({ moduleId: module._id })}
+                                onClick={() => handleRemoveModule(module._id)}
                             >
                                 <Trash2 />
                             </Button>
                         </div>
 
-                        <ul>
-                            {module.lessons.map((lesson) => (
-                                <li
-                                    key={lesson._id}
-                                    className={`p-2 pl-4 items-center flex space-x-3 cursor-pointer rounded-md transition duration-150 ease-in-out ${selectedLesson?._id === lesson._id
-                                        ? "bg-blue-100 hover:bg-blue-200"
-                                        : "hover:bg-gray-100"
-                                        }`}
-                                    onClick={() => setSelectedLesson(lesson)}
-                                >
-                                    <CaseSensitive className="text-zinc-500" />
-                                    <p className="capitalize">{lesson.title}</p>
-                                    <Button
-                                        variant={"secondary"}
-                                        className="text-red-300"
-                                        onClick={() => removeLesson({ lessonId: lesson._id })}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
+                        {/* Placeholder for future content item list */}
+                        <div className="text-center p-4 border rounded-md mb-2">
+                            <p className="text-muted-foreground text-sm">
+                                Content editing not available in this view.
+                            </p>
+                            <p className="text-muted-foreground text-xs mt-1">
+                                Please use the new course builder.
+                            </p>
+                        </div>
 
-                        <Button variant={"ghost"} onClick={() => handleAddLesson(module._id)} className="w-full mt-4 flex space-x-2">
+                        <Button 
+                            variant={"ghost"} 
+                            className="w-full mt-4 flex space-x-2"
+                            onClick={() => router.push(`/${typedGroupId}/courses/${typedCourseId}`)}
+                        >
                             <Plus className="w-4 h-4" />
-                            <p>Add lesson</p>
+                            <p>Use New Course Builder</p>
                         </Button>
                     </div>
                 ))}
-                <Button variant={"outline"} onClick={() => handleAddModule(course._id)} className="w-full mt-4 flex space-x-2 p-0 border-2 text-blue-700">
+                <Button variant={"outline"} onClick={handleAddModule} className="w-full mt-4 flex space-x-2 p-0 border-2 text-blue-700">
                     <Plus className="w-4 h-4" />
                     <p>Add module</p>
                 </Button>
+
+                <Button 
+                    variant={"default"} 
+                    className="w-full mt-8"
+                    onClick={() => router.push(`/${typedGroupId}/courses/${typedCourseId}`)}
+                >
+                    Go to New Course Builder
+                </Button>
             </div>
             <div className="flex-grow md:w-3/4 rounded-xl bg-gray-50 shadow-md p-4">
-                {selectedLesson && <LessonEditorView lesson={selectedLesson} />}
+                <div className="h-full flex items-center justify-center">
+                    <p className="text-muted-foreground">
+                        Content editing has moved to the new course builder. Please click on &quot;Go to New Course Builder&quot; to use the updated interface.
+                    </p>
+                </div>
             </div>
-        </div >
+        </div>
     );
+}
+
+// Use the Next.js 14 pattern with React.use() as recommended
+export default function CourseEditPage(props: { 
+    params: { groupId: string; courseId: string; }
+}) {
+    // We need to use this try-catch pattern to handle the params Promise properly
+    try {
+        // This handles the Promise nature of params in Next.js 14
+        const resolvedParams = React.use(props.params);
+        return <CourseEditPageContent 
+            groupId={resolvedParams.groupId} 
+            courseId={resolvedParams.courseId} 
+        />;
+    } catch (error) {
+        // This handles any error during params resolution
+        console.error("Error resolving params:", error);
+        return <div>Error loading page parameters</div>;
+    }
 }
