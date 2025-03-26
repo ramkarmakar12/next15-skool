@@ -38,7 +38,7 @@ export const CourseBuilder = ({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  const course = useQuery(api.courses.get, { courseId });
+  const course = useQuery(api.courses.get, { id: courseId });  // Change courseId to id
   const updateCourse = useMutation(api.courses.update);
   const deleteCourse = useMutation(api.courses.remove);
 

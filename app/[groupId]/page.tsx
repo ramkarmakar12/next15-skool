@@ -8,6 +8,8 @@ import { CreatePostModal } from "./_components/create-post-modal";
 import { AboutSide } from "@/components/about-side";
 import { Post } from "./_components/post-modal";
 import React, { useEffect, useState } from "react";
+import { use } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 
 interface ChatPageProps {
     params: {
@@ -102,14 +104,14 @@ const CommunityContent = ({ groupId }) => {
 }
 
 const Community = ({ params }: ChatPageProps) => {
-    // Access params directly without using React.use
-    const groupId = params.groupId;
+    // Unwrap params using React.use() instead of accessing directly
+    const { groupId } = use(params);
     
     return (
         <ErrorBoundary>
             <CommunityContent groupId={groupId} />
         </ErrorBoundary>
     );
-}
+};
 
 export default Community;

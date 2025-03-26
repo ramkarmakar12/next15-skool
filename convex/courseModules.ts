@@ -217,3 +217,82 @@ export const remove = mutation({
         return { success: true };
     }
 });
+
+// Update module title
+export const updateTitle = mutation({
+    args: {
+        moduleId: v.id("courseModules"),
+        title: v.string(),
+    },
+    handler: async (ctx, args) => {
+        try {
+            const identity = await ctx.auth.getUserIdentity();
+            if (!identity) {
+                return { success: false, error: "Not authenticated" };
+            }
+
+            const user = await ctx.db
+                .query("users")
+                .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+                .unique();
+
+            if (!user) {
+                return { success: false, error: "User not found" };
+            }
+
+            const module = await ctx.db.get(args.moduleId);
+            if (!module) {
+                return { success: false, error: "Module not found" };
+            }
+
+            const course = await ctx.db.get(module.courseId);
+            if (!course) {
+                return { success: false, error: "Course not found" };
+            }
+
+            // Check if user is the course owner
+            const isOwner = course.ownerId === user._id;
+            
+            // If user is owner, allow the update
+            if (isOwner) {
+                await ctx.db.patch(args.moduleId, {
+                    title: args.title,
+                    updatedAt: Date.now()
+                });
+                return { success: true };
+            }
+            
+            // If not owner, check if user is an author in the group
+            if (!course.groupId) {
+                return { success: false, error: "Not authorized" };
+            }
+
+            // Allow both course owner and group authors to edit
+            const group = await ctx.db.get(course.groupId);
+            if (!group) {
+                return { success: false, error: "Group not found" };
+            }
+
+            // Fix the members property access with proper type checking
+            // Use type assertion to access members property safely
+            const groupMembers = (group as any).members || [];
+            const isAuthor = groupMembers.some((member: { userId: Id<"users">; role: string }) => 
+                member.userId === user._id && 
+                (member.role === "owner" || member.role === "author")
+            );
+
+            if (!isAuthor) {
+                return { success: false, error: "Not authorized" };
+            }
+
+            await ctx.db.patch(args.moduleId, {
+                title: args.title,
+                updatedAt: Date.now()
+            });
+
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+        }
+    },
+});

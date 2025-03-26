@@ -59,7 +59,7 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: Id<"groups">, c
     const addModule = useMutation(api.courseModules.create);
     const removeModule = useMutation(api.courseModules.remove);
 
-    if (course === undefined || modules === undefined) {
+    if (course === undefined || modules === undefined || currentUser === undefined || group === undefined) {
         return <div>Loading...</div>;
     }
 
@@ -72,7 +72,6 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: Id<"groups">, c
     }
 
     const handleTitleUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Fix: Use id instead of courseId for the update
         updateCourse({ 
             id: courseId,
             name: e.target.value 
@@ -90,9 +89,24 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: Id<"groups">, c
         removeModule({ moduleId });
     }
 
-    const isOwner = currentUser?._id === group?.ownerId;
+    // Add a console log to debug
+    console.log("Modules:", modules);
+    console.log("Current user:", currentUser);
+    console.log("Group:", group);
+    
+    // Check if user is owner or has author role in the group
+    const isOwner = currentUser?._id === course.ownerId;
+    const isAuthor = group?.members?.some(member => 
+        member.userId === currentUser?._id && 
+        (member.role === "owner" || member.role === "author")
+    );
 
-    if (!isOwner) return <div>Unauthorized</div>;
+    console.log("Is owner:", isOwner);
+    console.log("Is author:", isAuthor);
+
+    const hasAccess = isOwner || isAuthor;
+
+    if (!hasAccess) return <div>Unauthorized: You need to be the course owner or an author to edit this course</div>;
 
     return (
         <div className="flex flex-col md:flex-row h-full w-full gap-4 p-4">
@@ -113,8 +127,8 @@ function CourseEditPageContent({ groupId, courseId }: { groupId: Id<"groups">, c
                         <div className="flex items-center mb-6 space-x-3">
                             <Component />
                             <ModuleNameEditor
+                                id={module._id}
                                 name={module.title}
-                                key={module._id}
                             />
                             <Button
                                 variant={"secondary"}

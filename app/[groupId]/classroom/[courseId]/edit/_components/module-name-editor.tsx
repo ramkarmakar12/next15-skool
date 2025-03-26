@@ -3,11 +3,11 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
-import { ElementRef, useRef, useState } from "react";
+import { ElementRef, useRef, useState, useEffect } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 
 interface NameEditorProps {
-    id: Id<"modules">;
+    id: Id<"courseModules">;
     name: string;
 }
 
@@ -18,16 +18,23 @@ export const ModuleNameEditor = ({
     const inputRef = useRef<ElementRef<"textarea">>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(name);
+    
+    // Update when name prop changes
+    useEffect(() => {
+        setValue(name);
+    }, [name]);
 
-    const update = useMutation(api.modules.updateTitle);
+    const update = useMutation(api.courseModules.updateTitle);
 
     const enableInput = () => {
         setIsEditing(true);
         setTimeout(() => {
             setValue(name);
-            const inputElement = inputRef.current;
             inputRef.current?.focus();
-            inputElement?.setSelectionRange(inputElement.value.length, inputElement.value.length);
+            const inputElement = inputRef.current;
+            if (inputElement) {
+                inputElement.setSelectionRange(inputElement.value.length, inputElement.value.length);
+            }
         }, 0);
     };
 
@@ -36,8 +43,11 @@ export const ModuleNameEditor = ({
     const onInput = (value: string) => {
         setValue(value);
         update({
-            id: id,
+            moduleId: id,
             title: value || "Untitled"
+        })
+        .catch(error => {
+            console.error("Failed to update module title:", error);
         });
     };
 
@@ -51,7 +61,7 @@ export const ModuleNameEditor = ({
     };
 
     return (
-        <div>
+        <div className="w-full">
             {isEditing ? (
                 <TextareaAutosize
                     ref={inputRef}
@@ -65,11 +75,11 @@ export const ModuleNameEditor = ({
             ) : (
                 <div
                     onClick={enableInput}
-                    className="w-full pb-[11.5px] text-md font-bold break-words outline-none text-[#3F3F3F]"
+                    className="w-full pb-[11.5px] text-md font-bold break-words outline-none text-[#3F3F3F] cursor-pointer"
                 >
                     {name}
                 </div>
             )}
         </div>
-    )
-}
+    );
+};

@@ -27,12 +27,19 @@ export const Curriculum = ({ course, groupId }: CurriculumProps) => {
         router.push(`/${groupId}/classroom/${course._id}/edit`);
     }
 
-    const isOwner = currentUser?._id === group?.ownerId;
+    // Check if user is owner or has author role in the group
+    const isOwner = currentUser?._id === course.ownerId;
+    const isAuthor = group?.members?.some(member => 
+        member.userId === currentUser?._id && 
+        (member.role === "owner" || member.role === "author")
+    );
+
+    const hasEditAccess = isOwner || isAuthor;
 
     return (
         <div className="flex flex-col md:flex-row h-full w-full gap-4 p-4">
             <div className="w-full md:w-1/4">
-                {isOwner && (
+                {hasEditAccess && (
                     <Button onClick={handleEditClick} variant={"secondary"} className="text-zinc-600 text-sm space-x-3 mb-10">
                         <Pen className="w-4 h-4" />
                         <p>Edit Course</p>

@@ -38,54 +38,61 @@ export const list = query({
 // Create a new course
 export const create = mutation({
     args: {
-        name: v.string(),
+        name: v.optional(v.string()),
+        title: v.optional(v.string()), // Add title as an optional field
         description: v.string(),
         groupId: v.optional(v.id("groups")),
-        thumbnail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            return { success: false, error: "Authentication required" };
+            throw new Error("Authentication required");
         }
-
+        
         const user = await ctx.db
             .query("users")
-            .withIndex("by_token", (q) =>
-                q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
             .unique();
 
         if (!user) {
-            return { success: false, error: "User not found" };
+            throw new Error("User not found");
         }
 
         const timestamp = Date.now();
         
+        // Use name if provided, otherwise use title
+        const courseName = args.name || args.title;
+        
+        if (!courseName) {
+            throw new Error("Either name or title must be provided");
+        }
+        
         const courseId = await ctx.db.insert("courses", {
-            name: args.name,
+            name: courseName,
             description: args.description,
-            groupId: args.groupId,
-            thumbnail: args.thumbnail,
             ownerId: user._id,
+            groupId: args.groupId,
             createdAt: timestamp,
             updatedAt: timestamp,
-            published: false,
+            published: false
         });
 
-        return { success: true, courseId };
+        return courseId;
     }
 });
 
 // Get a single course with all its modules and content
 export const get = query({
-    args: { courseId: v.id("courses") },
+    args: { 
+        id: v.id("courses")  // Change from courseId to id to match what the validator expects
+    },
     handler: async (ctx, args) => {
-        const course = await ctx.db.get(args.courseId);
+        const course = await ctx.db.get(args.id);  // Change from args.courseId to args.id
         if (!course) return null;
         
         // Get all modules for this course
         const modules = await ctx.db.query("courseModules")
-            .withIndex("by_courseId", (q) => q.eq("courseId", args.courseId))
+            .withIndex("by_courseId", (q) => q.eq("courseId", args.id))  // Change from args.courseId to args.id
             .order("asc")
             .collect();
             
@@ -106,7 +113,7 @@ export const get = query({
 // Update a course
 export const update = mutation({
     args: {
-        courseId: v.id("courses"),
+        id: v.id("courses"),  // Changed from courseId to id
         name: v.optional(v.string()),
         description: v.optional(v.string()),
         thumbnail: v.optional(v.string()),
@@ -118,7 +125,7 @@ export const update = mutation({
             return { success: false, error: "Authentication required" };
         }
 
-        const course = await ctx.db.get(args.courseId);
+        const course = await ctx.db.get(args.id);  // Changed from args.courseId to args.id
         if (!course) {
             return { success: false, error: "Course not found" };
         }
@@ -145,7 +152,7 @@ export const update = mutation({
         if (args.thumbnail !== undefined) updateData.thumbnail = args.thumbnail;
         if (args.published !== undefined) updateData.published = args.published;
 
-        await ctx.db.patch(args.courseId, updateData);
+        await ctx.db.patch(args.id, updateData);  // Changed from args.courseId to args.id
 
         return { success: true };
     }

@@ -32,6 +32,7 @@ export type Course = {
   ownerId: Id<"users">;
 };
 
+// Fix the CourseContent type to make fields optional
 export type CourseContent = {
   _id: Id<"courseContents">;
   moduleId: Id<"courseModules">;
@@ -39,15 +40,15 @@ export type CourseContent = {
   type: string;
   order: number;
   content: {
-    description: string;
-    videoUrl: string;
-    videoDuration: number | null;
-    videoProvider: string | null;
-    fileUrl: string;
-    fileType: string;
-    text: string;
-    url: string;
-    thumbnailUrl: string | null;
+    description?: string;
+    videoUrl?: string;
+    videoDuration?: number | null;
+    videoProvider?: string | null;
+    fileUrl?: string;
+    fileType?: string;
+    text?: string;
+    url?: string;
+    thumbnailUrl?: string | null;
   };
   createdAt: number;
   updatedAt: number;
@@ -67,7 +68,7 @@ export const list = query({
     args: { moduleId: v.id("courseModules") },
     handler: async (ctx: QueryCtx, args: { moduleId: Id<"courseModules"> }) => {
         return await ctx.db.query("courseContents")
-            .withIndex("by_moduleId", (q: DatabaseReader) => q.eq("moduleId", args.moduleId))
+            .withIndex("by_moduleId", (q) => q.eq("moduleId", args.moduleId))
             .order("asc")
             .collect();
     }
@@ -81,6 +82,54 @@ export const get = query({
     }
 });
 
+// Helper function to get the maximum order number for content in a module
+async function getMaxContentOrder(ctx: any, moduleId: Id<"courseModules">) {
+    const existingContent = await ctx.db.query("courseContents")
+        .withIndex("by_moduleId", (q: any) => q.eq("moduleId", moduleId))
+        .collect();
+    
+    // Fix the reduce function to properly handle the order
+    return existingContent.reduce((max: number, content: any) =>
+        Math.max(max, content.order || 0), 0);
+}
+
+// Helper function to authenticate and authorize the user
+async function authenticateAndAuthorize(ctx: any, moduleId: Id<"courseModules">) {
+    const identity = await ctx.auth.getUserIdentity();
+    
+    if (!identity) {
+        return { success: false, error: "Authentication required" };
+    }
+
+    const user = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+        .unique();
+
+    if (!user) {
+        return { success: false, error: "User not found" };
+    }
+
+    // Get module to check permissions
+    const courseModule = await ctx.db.get(moduleId);
+    
+    if (!courseModule) {
+        return { success: false, error: "Module not found" };
+    }
+
+    const course = await ctx.db.get(courseModule.courseId);
+    if (!course) {
+        return { success: false, error: "Course not found" };
+    }
+
+    // Only the owner can modify content
+    if (course.ownerId !== user._id) {
+        return { success: false, error: "Only the owner can modify content in this course" };
+    }
+
+    return { success: true, user, course, courseModule };
+}
+
 // Create a new video content
 export const createVideo = mutation({
     args: {
@@ -91,41 +140,36 @@ export const createVideo = mutation({
         videoDuration: v.optional(v.number()),
         videoProvider: v.optional(v.string()),
     },
-    handler: async (ctx: MutationCtx, args: {
-        moduleId: Id<"courseModules">,
-        title: string,
-        description: string | undefined,
-        videoUrl: string,
-        videoDuration: number | undefined,
-        videoProvider: string | undefined,
-    }) => {
-        // Authenticate and authorize the user
-        const result = await authenticateAndAuthorize(ctx, args.moduleId);
-        if (!result.success) {
-            return result;
+    handler: async (ctx, args) => {
+        try {
+            // Authenticate and authorize the user
+            await authenticateAndAuthorize(ctx, args.moduleId);
+            
+            // Get the highest order number to place this at the end
+            const maxOrder = await getMaxContentOrder(ctx, args.moduleId);
+            
+            const timestamp = Date.now();
+            
+            // Fix the videoDuration type
+            const contentId = await ctx.db.insert("courseContents", {
+                moduleId: args.moduleId,
+                title: args.title,
+                type: CONTENT_TYPES.VIDEO,
+                order: maxOrder + 1,
+                content: {
+                    description: args.description || "",
+                    videoUrl: args.videoUrl,
+                    videoDuration: args.videoDuration, // Remove the null fallback
+                    videoProvider: args.videoProvider || "youtube",
+                },
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            });
+            
+            return { success: true, contentId };
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
         }
-
-        // Get the highest order number to place this at the end
-        const maxOrder = await getMaxContentOrder(ctx, args.moduleId);
-        
-        const timestamp = Date.now();
-        
-        const contentId = await ctx.db.insert("courseContents", {
-            moduleId: args.moduleId,
-            title: args.title,
-            type: CONTENT_TYPES.VIDEO,
-            order: maxOrder + 1,
-            content: {
-                description: args.description || "",
-                videoUrl: args.videoUrl,
-                videoDuration: args.videoDuration,
-                videoProvider: args.videoProvider || "youtube",
-            },
-            createdAt: timestamp,
-            updatedAt: timestamp,
-        });
-
-        return { success: true, contentId };
     }
 });
 
@@ -541,7 +585,7 @@ export const remove = mutation({
 
         // Reorder remaining content
         const remainingContent = await ctx.db.query("courseContents")
-            .withIndex("by_moduleId", (q: DatabaseReader) => q.eq("moduleId", content.moduleId))
+            .withIndex("by_moduleId", (q) => q.eq("moduleId", content.moduleId))
             .order("asc")
             .collect();
             
@@ -553,50 +597,31 @@ export const remove = mutation({
     }
 });
 
-// Helper function to authenticate and authorize the user
-async function authenticateAndAuthorize(ctx: ConvexContext, moduleId: Id<"courseModules">) {
-    const identity = await ctx.auth.getUserIdentity();
-    
-    if (!identity) {
-        throw new Error("Authentication required");
-    }
-
-    const user = await ctx.db
-        .query("users")
-        .withIndex("by_token", (q: DatabaseReader) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-        .unique();
-
-    if (!user) {
-        throw new Error("User not found");
-    }
-
-    // Get module to check permissions
-    const courseModule = await ctx.db.get(moduleId);
-    
-    if (!courseModule) {
-        throw new Error("Module not found");
-    }
-
-    const course = await ctx.db.get(courseModule.courseId);
-    if (!course) {
-        throw new Error("Course not found");
-    }
-
-    // Only the owner can modify content
-    if (course.ownerId !== user._id) {
-        throw new Error("Only the owner can modify content in this course");
-    }
-
-    return { success: true, user, course, courseModule };
-}
-
-// Helper function to get the maximum order of content in a module
-async function getMaxContentOrder(ctx: ConvexContext, moduleId: Id<"courseModules">) {
-    const existingContent = await ctx.db.query("courseContents")
-        .withIndex("by_moduleId", (q: DatabaseReader) => q.eq("moduleId", moduleId))
-        .order("asc")
-        .collect();
-    
-    return existingContent.reduce((max: number, content: CourseContent) => 
-        Math.max(max, content.order || 0), 0);
-}
+// Remove the duplicate reorder function at the end of the file
+// Delete this entire section:
+// export const reorder = mutation({
+//     args: {
+//         moduleId: v.id("courseModules"),
+//         contentIds: v.array(v.id("courseContents")),
+//     },
+//     handler: async (ctx: MutationCtx, args: {
+//         moduleId: Id<"courseModules">,
+//         contentIds: Id<"courseContents">[],
+//     }) => {
+//         // Authenticate and authorize the user
+//         const result = await authenticateAndAuthorize(ctx, args.moduleId);
+//         if (!result.success) {
+//             return result;
+//         }
+//
+//         // Update the order of each content item
+//         for (let i = 0; i < args.contentIds.length; i++) {
+//             await ctx.db.patch(args.contentIds[i], { 
+//                 order: i + 1,
+//                 updatedAt: Date.now()
+//             });
+//         }
+//
+//         return { success: true };
+//     }
+// });
