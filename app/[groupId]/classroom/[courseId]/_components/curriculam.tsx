@@ -58,19 +58,26 @@ export const Curriculum = ({ course, groupId }: CurriculumProps) => {
                         </div>
 
                         <ul>
-                            {module.lessons.map((lesson) => (
-                                <li
-                                    key={lesson._id}
-                                    className={`p-2 pl-4 items-center flex space-x-3 cursor-pointer rounded-md transition duration-150 ease-in-out ${selectedLesson?._id === lesson._id
-                                        ? "bg-blue-100 hover:bg-blue-200"
-                                        : "hover:bg-gray-100"
-                                        }`}
-                                    onClick={() => setSelectedLesson(lesson)}
-                                >
-                                    <CaseSensitive className="text-zinc-500" />
-                                    <p className="capitalize">{lesson.title}</p>
+                            {/* Add null check for module.lessons */}
+                            {module.lessons && module.lessons.length > 0 ? (
+                                module.lessons.map((lesson) => (
+                                    <li
+                                        key={lesson._id}
+                                        className={`p-2 pl-4 items-center flex space-x-3 cursor-pointer rounded-md transition duration-150 ease-in-out ${selectedLesson?._id === lesson._id
+                                            ? "bg-blue-100 hover:bg-blue-200"
+                                            : "hover:bg-gray-100"
+                                            }`}
+                                        onClick={() => setSelectedLesson(lesson)}
+                                    >
+                                        <CaseSensitive className="text-zinc-500" />
+                                        <p className="capitalize">{lesson.title}</p>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="p-4 text-center text-muted-foreground">
+                                    No lessons available in this module
                                 </li>
-                            ))}
+                            )}
                         </ul>
                     </div>
                 ))}

@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { CourseBuilder } from "./_components/course-builder";
 
-export default function CourseDetailPage({ 
-  params 
-}: { 
-  params: { groupId: string; courseId: string } 
+export default async function CourseDetailPage({
+  params,
+}: {
+  params: Promise<{ groupId: string; courseId: string }> | { groupId: string; courseId: string }
 }) {
-  const { groupId, courseId } = params;
+  // Await params before destructuring
+  const resolvedParams = await Promise.resolve(params);
+  const { groupId, courseId } = resolvedParams;
 
   if (!groupId || !courseId) {
     notFound();

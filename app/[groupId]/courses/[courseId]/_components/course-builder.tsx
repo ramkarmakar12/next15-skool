@@ -71,10 +71,10 @@ export const CourseBuilder = ({
     try {
       setIsPublishing(true);
       const result = await updateCourse({
-        courseId,
+        id: courseId,  // Change from courseId to id to match API
         published: !course.published,
       });
-
+  
       if (result.success) {
         toast.success(course.published ? "Course unpublished" : "Course published");
       } else {
