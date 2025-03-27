@@ -18,11 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { FileText, Video, ExternalLink, FileCode, MessageSquare } from "lucide-react";
 
 interface AddContentModalProps {
   isOpen: boolean;
   onClose: () => void;
   moduleId: Id<"courseModules">;
+  courseId: Id<"courses">;
+  contentType: string | null;
 }
 
 // Define content types
@@ -31,18 +34,22 @@ const CONTENT_TYPES = {
   DOCUMENT: "document",
   TEXT: "text",
   LINK: "link",
+  DIAGRAM: "diagram",
+  TRANSCRIPT: "transcript"
 };
 
 export const AddContentModal = ({
   isOpen,
   onClose,
   moduleId,
+  courseId,
+  contentType: initialContentType,
 }: AddContentModalProps) => {
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Add content type state
-  const [contentType, setContentType] = useState(CONTENT_TYPES.TEXT);
+  // Add content type state - initialize with the passed contentType or default to TEXT
+  const [contentType, setContentType] = useState(initialContentType || CONTENT_TYPES.TEXT);
   
   // Add content-specific fields
   const [description, setDescription] = useState("");
@@ -134,11 +141,12 @@ export const AddContentModal = ({
             disabled={isSubmitting}
           />
           
-          <Tabs defaultValue={CONTENT_TYPES.TEXT} onValueChange={(value) => setContentType(value)}>
-            <TabsList className="grid grid-cols-4 mb-4">
+          <Tabs defaultValue={contentType} onValueChange={(value) => setContentType(value)}>
+            <TabsList className="grid grid-cols-5 mb-4">
               <TabsTrigger value={CONTENT_TYPES.TEXT}>Text</TabsTrigger>
               <TabsTrigger value={CONTENT_TYPES.VIDEO}>Video</TabsTrigger>
               <TabsTrigger value={CONTENT_TYPES.DOCUMENT}>Document</TabsTrigger>
+              <TabsTrigger value={CONTENT_TYPES.DIAGRAM}>Diagram</TabsTrigger>
               <TabsTrigger value={CONTENT_TYPES.LINK}>Link</TabsTrigger>
             </TabsList>
             
@@ -185,6 +193,24 @@ export const AddContentModal = ({
                   placeholder="PDF, DOCX, etc." 
                   value={fileType}
                   onChange={(e) => setFileType(e.target.value)}
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value={CONTENT_TYPES.DIAGRAM}>
+              <div className="space-y-2">
+                <Label>Diagram URL</Label>
+                <Input 
+                  placeholder="https://..." 
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                />
+                <Label>Description (optional)</Label>
+                <Textarea 
+                  placeholder="Diagram description..." 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
                 />
               </div>
             </TabsContent>

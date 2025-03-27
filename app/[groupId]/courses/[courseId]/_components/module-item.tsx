@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/spinner";
 import { 
   GripVertical, 
+  Download, 
   Pencil, 
   Plus, 
   Trash,
@@ -31,6 +32,8 @@ import { ModuleEditModal } from "./module-edit-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { ContentList } from "./content-list";
 import { AddContentModal } from "./add-content-modal";
+import {  useRef } from "react";
+import Link from "next/link";
 
 interface ModuleItemProps {
   module: Doc<"courseModules">;
@@ -199,26 +202,82 @@ export const ModuleItem = ({
                               {expandedContentId === content._id && (
                                 <div className="mt-2 pl-2 border-l-2 border-slate-200 text-slate-600">
                                   {content.type === "video" && (
-                                    <div className="space-y-1">
-                                      <p>Video: {content.content.videoUrl}</p>
-                                      {content.content.description && <p>Description: {content.content.description}</p>}
+                                    <div className="space-y-2">
+                                      <div className="relative w-full pt-[56.25%] rounded-md overflow-hidden">
+                                        <iframe 
+                                          className="absolute top-0 left-0 w-full h-full"
+                                          src={content.content.videoUrl?.replace("watch?v=", "embed/") || ""}
+                                          title={content.title}
+                                          frameBorder="0"
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                          allowFullScreen
+                                        ></iframe>
+                                      </div>
+                                      {content.content.description && (
+                                        <p className="text-sm mt-2">{content.content.description}</p>
+                                      )}
                                     </div>
                                   )}
                                   {content.type === "document" && (
-                                    <div className="space-y-1">
-                                      <p>Document: {content.content.fileUrl}</p>
-                                      {content.content.fileType && <p>Type: {content.content.fileType}</p>}
+                                    <div className="space-y-2">
+                                      <div className="flex items-center">
+                                        <a 
+                                          href={content.content.fileUrl} 
+                                          download
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center text-blue-600 hover:text-blue-800"
+                                        >
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download {content.content.fileType || "Document"}
+                                        </a>
+                                      </div>
+                                      {content.content.description && (
+                                        <p className="text-sm mt-2">{content.content.description}</p>
+                                      )}
                                     </div>
                                   )}
                                   {content.type === "text" && (
-                                    <div className="space-y-1">
+                                    <div className="prose prose-sm max-w-none">
                                       <p>{content.content.text}</p>
                                     </div>
                                   )}
                                   {content.type === "link" && (
-                                    <div className="space-y-1">
-                                      <p>Link: {content.content.url}</p>
-                                      {content.content.description && <p>Description: {content.content.description}</p>}
+                                    <div className="space-y-2">
+                                      <a 
+                                        href={content.content.url} 
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center text-blue-600 hover:text-blue-800"
+                                      >
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        {content.content.url}
+                                      </a>
+                                      {content.content.description && (
+                                        <p className="text-sm mt-2">{content.content.description}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Handle diagram and transcript types */}
+                                  {content.type === "diagram" && (
+                                    <div className="space-y-2">
+                                      <div className="border rounded-md p-4 bg-gray-50">
+                                        <img 
+                                          src={content.content.fileUrl || "/placeholder-diagram.svg"} 
+                                          alt={content.title}
+                                          className="max-w-full h-auto"
+                                        />
+                                      </div>
+                                      {content.content.description && (
+                                        <p className="text-sm mt-2">{content.content.description}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {content.type === "transcript" && (
+                                    <div className="prose prose-sm max-w-none bg-gray-50 p-3 rounded-md">
+                                      <p>{content.content.text}</p>
                                     </div>
                                   )}
                                 </div>
