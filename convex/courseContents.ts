@@ -651,3 +651,47 @@ export const create = mutation({
     }
   }
 });
+
+// Get all content items for a course
+export const listAll = query({
+  args: {
+    courseId: v.id("courses"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    
+    // First get all modules for this course
+    const modules = await ctx.db
+      .query("courseModules")
+      .filter((q) => q.eq(q.field("courseId"), args.courseId))
+      .collect();
+    
+    // Get all moduleIds
+    const moduleIds = modules.map(module => module._id);
+    
+    // If no modules found, return empty array
+    if (moduleIds.length === 0) {
+      return [];
+    }
+    
+    // Then get all content items for these modules
+    // We'll fetch content for each module separately and combine results
+    let contents: CourseContent[] = [];
+    
+    for (const moduleId of moduleIds) {
+      const moduleContents = await ctx.db
+        .query("courseContents")
+        .filter((q) => q.eq(q.field("moduleId"), moduleId))
+        .order("asc")
+        .collect();
+      
+      contents = [...contents, ...moduleContents];
+    }
+    
+    return contents;
+  },
+});
