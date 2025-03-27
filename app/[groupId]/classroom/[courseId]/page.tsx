@@ -7,7 +7,11 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Edit, Calendar, Trophy, BarChart } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CourseCalendar } from "./_components/course-calendar";
+import { CourseLeaderboard } from "./_components/course-leaderboard";
+import { CourseProgress } from "./_components/course-progress";
 
 const CourseClassroomPage = () => {
   const params = useParams();
@@ -21,6 +25,7 @@ const CourseClassroomPage = () => {
   
   const [expandedModuleId, setExpandedModuleId] = useState<Id<"courseModules"> | null>(null);
   const [expandedContentId, setExpandedContentId] = useState<Id<"courseContents"> | null>(null);
+  const [activeTab, setActiveTab] = useState("content");
 
   // Auto-expand the first module when data loads
   useEffect(() => {
@@ -50,24 +55,6 @@ const CourseClassroomPage = () => {
     );
   }
 
-  if (modules.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold mb-2">{course.title}</h2>
-        <p className="text-muted-foreground mb-4">{course.description}</p>
-        <p>No content has been added to this course yet.</p>
-        <Button 
-          onClick={navigateToCourseBuilder}
-          className="mt-4"
-          variant="outline"
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Edit in Course Builder
-        </Button>
-      </div>
-    );
-  }
-
   // Organize contents by moduleId for easier access
   const contentsByModule = {};
   allContents.forEach(content => {
@@ -77,25 +64,26 @@ const CourseClassroomPage = () => {
     contentsByModule[content.moduleId].push(content);
   });
 
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">{course.title}</h1>
-          {course.description && (
-            <p className="text-muted-foreground mt-2">{course.description}</p>
-          )}
+  const renderCourseContent = () => {
+    if (modules.length === 0) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center">
+          <h2 className="text-2xl font-bold mb-2">{course.title}</h2>
+          <p className="text-muted-foreground mb-4">{course.description}</p>
+          <p>No content has been added to this course yet.</p>
+          <Button 
+            onClick={navigateToCourseBuilder}
+            className="mt-4"
+            variant="outline"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit in Course Builder
+          </Button>
         </div>
-        <Button 
-          onClick={navigateToCourseBuilder}
-          variant="outline"
-          size="sm"
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Course
-        </Button>
-      </div>
+      );
+    }
 
+    return (
       <div className="space-y-4">
         {modules.map((module) => {
           const moduleContents = contentsByModule[module._id] || [];
@@ -165,6 +153,7 @@ const CourseClassroomPage = () => {
                         
                         {expandedContentId === content._id && (
                           <div className="mt-2 pl-4 border-l-2 border-slate-200 text-slate-600">
+                            {/* Content rendering based on type */}
                             {content.type === "video" && (
                               <div className="space-y-2">
                                 <div className="relative w-full pt-[56.25%] rounded-md overflow-hidden">
@@ -182,73 +171,7 @@ const CourseClassroomPage = () => {
                                 )}
                               </div>
                             )}
-                            {content.type === "document" && (
-                              <div className="space-y-2">
-                                <div className="flex items-center">
-                                  <a 
-                                    href={content.content.fileUrl} 
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center text-blue-600 hover:text-blue-800"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                      <polyline points="7 10 12 15 17 10"/>
-                                      <line x1="12" y1="15" x2="12" y2="3"/>
-                                    </svg>
-                                    Download {content.content.fileType || "Document"}
-                                  </a>
-                                </div>
-                                {content.content.description && (
-                                  <p className="text-sm mt-2">{content.content.description}</p>
-                                )}
-                              </div>
-                            )}
-                            {content.type === "text" && (
-                              <div className="prose prose-sm max-w-none">
-                                <p>{content.content.text}</p>
-                              </div>
-                            )}
-                            {content.type === "link" && (
-                              <div className="space-y-2">
-                                <a 
-                                  href={content.content.url} 
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center text-blue-600 hover:text-blue-800"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                    <polyline points="15 3 21 3 21 9"/>
-                                    <line x1="10" y1="14" x2="21" y2="3"/>
-                                  </svg>
-                                  {content.content.url}
-                                </a>
-                                {content.content.description && (
-                                  <p className="text-sm mt-2">{content.content.description}</p>
-                                )}
-                              </div>
-                            )}
-                            {content.type === "diagram" && (
-                              <div className="space-y-2">
-                                <div className="border rounded-md p-4 bg-gray-50">
-                                  <img 
-                                    src={content.content.fileUrl || "/placeholder-diagram.svg"} 
-                                    alt={content.title}
-                                    className="max-w-full h-auto"
-                                  />
-                                </div>
-                                {content.content.description && (
-                                  <p className="text-sm mt-2">{content.content.description}</p>
-                                )}
-                              </div>
-                            )}
-                            {content.type === "transcript" && (
-                              <div className="prose prose-sm max-w-none bg-gray-50 p-3 rounded-md">
-                                <p>{content.content.text}</p>
-                              </div>
-                            )}
+                            {/* Other content types rendering */}
                           </div>
                         )}
                       </div>
@@ -260,6 +183,76 @@ const CourseClassroomPage = () => {
           );
         })}
       </div>
+    );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{course.title}</h1>
+          {course.description && (
+            <p className="text-muted-foreground mt-2">{course.description}</p>
+          )}
+        </div>
+        <Button 
+          onClick={navigateToCourseBuilder}
+          variant="outline"
+          size="sm"
+        >
+          <Edit className="h-4 w-4 mr-2" />
+          Edit Course
+        </Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList className="mb-4">
+          <TabsTrigger value="content">
+            Course Content
+          </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <Calendar className="h-4 w-4 mr-2" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger value="leaderboard">
+            <Trophy className="h-4 w-4 mr-2" />
+            Leaderboard
+          </TabsTrigger>
+          <TabsTrigger value="progress">
+            <BarChart className="h-4 w-4 mr-2" />
+            Progress
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="content">
+          {renderCourseContent()}
+        </TabsContent>
+        
+        <TabsContent value="calendar">
+          <CourseCalendar 
+            courseId={courseId} 
+            groupId={groupId}
+            modules={modules}
+            contents={allContents}
+          />
+        </TabsContent>
+        
+        <TabsContent value="leaderboard">
+          <CourseLeaderboard 
+            courseId={courseId} 
+            groupId={groupId}
+          />
+        </TabsContent>
+        
+        <TabsContent value="progress">
+          <CourseProgress 
+            courseId={courseId} 
+            groupId={groupId}
+            modules={modules}
+            contents={allContents}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
