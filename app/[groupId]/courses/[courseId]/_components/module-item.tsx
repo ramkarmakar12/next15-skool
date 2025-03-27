@@ -23,7 +23,9 @@ import {
   FileText,
   ExternalLink,
   FileCode,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { ModuleEditModal } from "./module-edit-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
@@ -47,6 +49,8 @@ export const ModuleItem = ({
   const [contentType, setContentType] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Add this at the top with other useMutation calls
+  const deleteContent = useMutation(api.courseContents.deleteContent);
   const deleteModule = useMutation(api.courseModules.remove);
   
   // Get the content items for this module
@@ -78,6 +82,36 @@ export const ModuleItem = ({
   const handleAddContent = (type: string) => {
     setContentType(type);
     setIsAddContentModalOpen(true);
+  };
+
+  // Inside the ModuleItem component
+  const [expandedContentId, setExpandedContentId] = useState<Id<"courseContents"> | null>(null);
+  
+  // Add this function to toggle content expansion
+  const toggleContentExpand = (contentId: Id<"courseContents">) => {
+    if (expandedContentId === contentId) {
+      setExpandedContentId(null);
+    } else {
+      setExpandedContentId(contentId);
+    }
+  };
+  
+  // Fix the delete content function
+  const handleDeleteContent = async (contentId: Id<"courseContents">) => {
+    try {
+      const result = await deleteContent({
+        contentId
+      });
+      
+      if (result.success) {
+        toast.success("Content deleted successfully");
+      } else {
+        toast.error(result.error || "Failed to delete content");
+      }
+    } catch (error) {
+      console.error("Error deleting content:", error);
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   return (
@@ -140,11 +174,71 @@ export const ModuleItem = ({
                     </p>
                   )}
                   
-                  {/* Content List */}
-                  <ContentList 
-                    moduleId={module._id} 
-                    courseId={courseId}
-                  />
+                  {/* Content List with expanded view */}
+                  <div className="space-y-2">
+                    {contents && contents.map((content, index) => (
+                      <div key={content._id} className="pl-6 mt-2">
+                        <div className="flex items-center group relative">
+                          <div className="flex items-center flex-1">
+                            <GripVertical className="h-5 w-5 text-slate-500 cursor-grab" />
+                            <div className="ml-2 text-sm flex-1">
+                              <div className="flex items-center">
+                                <span className="font-medium">{content.title}</span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="ml-2 h-6 w-6 p-0"
+                                  onClick={() => toggleContentExpand(content._id)}
+                                >
+                                  {expandedContentId === content._id ? 
+                                    <ChevronDown className="h-4 w-4" /> : 
+                                    <ChevronRight className="h-4 w-4" />
+                                  }
+                                </Button>
+                              </div>
+                              {expandedContentId === content._id && (
+                                <div className="mt-2 pl-2 border-l-2 border-slate-200 text-slate-600">
+                                  {content.type === "video" && (
+                                    <div className="space-y-1">
+                                      <p>Video: {content.content.videoUrl}</p>
+                                      {content.content.description && <p>Description: {content.content.description}</p>}
+                                    </div>
+                                  )}
+                                  {content.type === "document" && (
+                                    <div className="space-y-1">
+                                      <p>Document: {content.content.fileUrl}</p>
+                                      {content.content.fileType && <p>Type: {content.content.fileType}</p>}
+                                    </div>
+                                  )}
+                                  {content.type === "text" && (
+                                    <div className="space-y-1">
+                                      <p>{content.content.text}</p>
+                                    </div>
+                                  )}
+                                  {content.type === "link" && (
+                                    <div className="space-y-1">
+                                      <p>Link: {content.content.url}</p>
+                                      {content.content.description && <p>Description: {content.content.description}</p>}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-x-2 opacity-0 group-hover:opacity-100">
+                            <Button 
+                              onClick={() => handleDeleteContent(content._id)} 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-500"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   
                   {/* Add Content Options */}
                   <div className="flex flex-wrap gap-2 mt-4">

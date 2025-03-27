@@ -562,39 +562,41 @@ export const reorder = mutation({
 });
 
 // Delete content
-export const remove = mutation({
-    args: {
-        contentId: v.id("courseContents"),
-    },
-    handler: async (ctx: MutationCtx, args: {
-        contentId: Id<"courseContents">,
-    }) => {
-        const content = await ctx.db.get(args.contentId);
-        if (!content) {
-            return { success: false, error: "Content not found" };
-        }
+// Add this mutation to your courseContents.ts file if it doesn't exist
 
-        // Authenticate and authorize the user
-        const result = await authenticateAndAuthorize(ctx, content.moduleId);
-        if (!result.success) {
-            return result;
-        }
-
-        // Delete the content
-        await ctx.db.delete(args.contentId);
-
-        // Reorder remaining content
-        const remainingContent = await ctx.db.query("courseContents")
-            .withIndex("by_moduleId", (q) => q.eq("moduleId", content.moduleId))
-            .order("asc")
-            .collect();
-            
-        for (let i = 0; i < remainingContent.length; i++) {
-            await ctx.db.patch(remainingContent[i]._id, { order: i + 1 });
-        }
-
-        return { success: true };
+export const deleteContent = mutation({
+  args: { contentId: v.id("courseContents") },
+  handler: async (ctx, args) => {
+    try {
+      const content = await ctx.db.get(args.contentId);
+      
+      if (!content) {
+        return { success: false, error: "Content not found" };
+      }
+      
+      // Get the module to check permissions
+      const module = await ctx.db.get(content.moduleId);
+      if (!module) {
+        return { success: false, error: "Module not found" };
+      }
+      
+      // Authenticate and authorize the user
+      const auth = await authenticateAndAuthorize(ctx, content.moduleId);
+      if (!auth.success) {
+        return { success: false, error: auth.error };
+      }
+      
+      // Delete the content
+      await ctx.db.delete(args.contentId);
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      };
     }
+  }
 });
 
 // Remove the duplicate reorder function at the end of the file
