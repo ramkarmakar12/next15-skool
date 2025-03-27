@@ -1,20 +1,21 @@
 import { notFound } from "next/navigation";
 import { CoursesList } from "./_components/courses-list";
 
-export default function CoursesPage({ 
-  params 
-}: { 
-  params: { groupId: string } 
+export default async function CoursesPage({
+  params,
+}: {
+  params: Promise<{ groupId: string }> | { groupId: string }
 }) {
-  const groupId = params.groupId;
+  // Await params before accessing properties
+  const resolvedParams = await Promise.resolve(params);
+  const groupId = resolvedParams.groupId;
 
   if (!groupId) {
     notFound();
   }
 
   return (
-    <div className="flex flex-col h-full p-6">
-      <h1 className="text-2xl font-bold mb-6">Courses</h1>
+    <div className="h-full p-6">
       <CoursesList groupId={groupId} />
     </div>
   );

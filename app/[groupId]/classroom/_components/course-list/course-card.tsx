@@ -29,7 +29,12 @@ export const CourseCard = ({
             onClick={handleClick}
         >
             <div className="h-[200px] relative">
-                <Image src="/logo.svg" fill alt={title} objectFit="cover" />
+                <Image 
+                    src="/logo.svg" 
+                    fill 
+                    alt={title} 
+                    style={{ objectFit: "cover" }} 
+                />
             </div>
             <div className="flex flex-col h-[140px] justify-start p-3">
                 <h3 className="font-bold">{title}</h3>

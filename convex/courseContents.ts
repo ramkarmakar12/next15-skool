@@ -598,30 +598,54 @@ export const remove = mutation({
 });
 
 // Remove the duplicate reorder function at the end of the file
-// Delete this entire section:
-// export const reorder = mutation({
-//     args: {
-//         moduleId: v.id("courseModules"),
-//         contentIds: v.array(v.id("courseContents")),
-//     },
-//     handler: async (ctx: MutationCtx, args: {
-//         moduleId: Id<"courseModules">,
-//         contentIds: Id<"courseContents">[],
-//     }) => {
-//         // Authenticate and authorize the user
-//         const result = await authenticateAndAuthorize(ctx, args.moduleId);
-//         if (!result.success) {
-//             return result;
-//         }
-//
-//         // Update the order of each content item
-//         for (let i = 0; i < args.contentIds.length; i++) {
-//             await ctx.db.patch(args.contentIds[i], { 
-//                 order: i + 1,
-//                 updatedAt: Date.now()
-//             });
-//         }
-//
-//         return { success: true };
-//     }
-// });
+// Add a general create function that can handle different content types
+
+export const create = mutation({
+  args: {
+    moduleId: v.id("courseModules"),
+    title: v.string(),
+    type: v.string(),
+    content: v.object({
+      description: v.optional(v.string()),
+      videoUrl: v.optional(v.string()),
+      videoDuration: v.optional(v.number()),
+      videoProvider: v.optional(v.string()),
+      fileUrl: v.optional(v.string()),
+      fileType: v.optional(v.string()),
+      text: v.optional(v.string()),
+      url: v.optional(v.string()),
+      thumbnailUrl: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Authenticate and authorize the user
+      const auth = await authenticateAndAuthorize(ctx, args.moduleId);
+      if (!auth.success) {
+        return { success: false, error: auth.error };
+      }
+      
+      // Get the highest order number to place this at the end
+      const maxOrder = await getMaxContentOrder(ctx, args.moduleId);
+      
+      const timestamp = Date.now();
+      
+      const contentId = await ctx.db.insert("courseContents", {
+        moduleId: args.moduleId,
+        title: args.title,
+        type: args.type,
+        order: maxOrder + 1,
+        content: args.content,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      
+      return { success: true, contentId };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      };
+    }
+  }
+});
