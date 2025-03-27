@@ -23,8 +23,8 @@ export default async function CourseDetailPage({
     return redirect("/");
   }
 
-  const courseId = params.courseId as Id<"courses">;
-  const groupId = params.groupId as Id<"groups">;
+  const courseId = await params.courseId as Id<"courses">;
+  const groupId = await params.groupId as Id<"groups">;
 
   return (
     <div className="h-full p-6">
