@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable TypeScript checking during build
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -10,20 +9,17 @@ const nextConfig = {
   },
   // Disable strict mode for now
   reactStrictMode: false,
-  // Configure image domains
   images: {
     domains: [
+      'ui-avatars.com',
       'images.unsplash.com',
-      'utfs.io', // For uploadthing
-      'lh3.googleusercontent.com', // For Google avatars
-      'avatars.githubusercontent.com', // For GitHub avatars
-      'img.clerk.com' // For Clerk avatars
+      // Add any other domains you're using for images
     ],
   },
-  // Ensure static files are properly generated
-  distDir: '.next',
-  poweredByHeader: false,
-  output: 'standalone',
+    // Ensure static files are properly generated
+    distDir: '.next',
+    poweredByHeader: false,
+    output: 'standalone',
 }
 
 module.exports = nextConfig

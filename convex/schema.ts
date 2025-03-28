@@ -22,7 +22,8 @@ export default defineSchema({
         isPublic: v.optional(v.boolean()), 
         endsOn: v.optional(v.number()),
         subscriptionId: v.optional(v.string()),
-        category: v.optional(v.string()), // Added category field
+        category: v.optional(v.string()),
+        imageUrl: v.optional(v.string()), // Add imageUrl field
     })
         .index("by_name", ["name"])
         .index("by_ownerId", ["ownerId"])

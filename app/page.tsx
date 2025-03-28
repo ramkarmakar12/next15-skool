@@ -153,6 +153,7 @@ export default function Home() {
                         members={group.memberNumber || 0}
                         category={group.category || "General"}
                         rank={group.rank}
+                        imageUrl={group.imageUrl}
                       />
                     ))}
                   </div>

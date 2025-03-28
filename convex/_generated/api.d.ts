@@ -18,6 +18,7 @@ import type * as courseContents from "../courseContents.js";
 import type * as courseModules from "../courseModules.js";
 import type * as courses from "../courses.js";
 import type * as email from "../email.js";
+import type * as files from "../files.js";
 import type * as groups from "../groups.js";
 import type * as lessons from "../lessons.js";
 import type * as likes from "../likes.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   courseModules: typeof courseModules;
   courses: typeof courses;
   email: typeof email;
+  files: typeof files;
   groups: typeof groups;
   lessons: typeof lessons;
   likes: typeof likes;

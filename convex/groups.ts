@@ -7,9 +7,10 @@ export const create = mutation({
         name: v.string(), 
         description: v.optional(v.string()),
         isPublic: v.optional(v.boolean()),
-        category: v.optional(v.string()), // Add category to the validator
+        category: v.optional(v.string()),
         price: v.optional(v.number()),
         memberNumber: v.optional(v.number()),
+        imageUrl: v.optional(v.string()), // Add imageUrl to the validator
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -37,8 +38,10 @@ export const create = mutation({
             ownerId: user._id,
             price: 0,
             memberNumber: 1,
-            isPublic: args.isPublic ?? false, // Set isPublic flag with default false
-            endsOn: farFutureDate, // Add a default far-future expiration date
+            isPublic: args.isPublic ?? false,
+            endsOn: farFutureDate,
+            imageUrl: args.imageUrl, // Add imageUrl to the group
+            category: args.category,
         });
 
         // Add the creator as a member of the group
@@ -403,5 +406,55 @@ export const getPublicGroups = query({
 
     // Sort groups by member count (descending)
     return groupsWithMemberCount.sort((a, b) => b.memberNumber - a.memberNumber);
+  },
+});
+
+// Add this mutation to update a group
+export const update = mutation({
+  args: {
+    id: v.id("groups"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    isPublic: v.optional(v.boolean()),
+    category: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get the user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get the group
+    const group = await ctx.db.get(args.id);
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    // Check if user is the owner
+    if (group.ownerId !== user._id) {
+      throw new Error("Not authorized to update this group");
+    }
+
+    // Update the group
+    await ctx.db.patch(args.id, {
+      ...(args.name && { name: args.name }),
+      ...(args.description && { description: args.description }),
+      ...(args.isPublic !== undefined && { isPublic: args.isPublic }),
+      ...(args.category && { category: args.category }),
+      ...(args.imageUrl && { imageUrl: args.imageUrl }),
+    });
+
+    return args.id;
   },
 });

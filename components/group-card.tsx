@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Id } from "@/convex/_generated/dataModel";
 import { Users } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface GroupCardProps {
   id: Id<"groups">;
@@ -10,6 +11,7 @@ interface GroupCardProps {
   members: number;
   category?: string;
   rank?: number;
+  imageUrl?: string;
 }
 
 export const GroupCard = ({
@@ -18,7 +20,8 @@ export const GroupCard = ({
   description,
   members,
   category = "General",
-  rank
+  rank,
+  imageUrl
 }: GroupCardProps) => {
   // Function to get category badge color
   const getCategoryColor = (category: string) => {
@@ -58,14 +61,29 @@ export const GroupCard = ({
     }
   };
 
+  // Generate default image based on name if no imageUrl is provided
+  const getDefaultImage = () => {
+    // Use a placeholder image service with the name as seed
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=200`;
+  };
+
   return (
     <Link href={`/${id}`}>
       <Card className="h-full overflow-hidden hover:shadow-md transition-shadow">
-        {rank && (
-          <div className="absolute top-2 left-2 bg-black text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-            #{rank}
-          </div>
-        )}
+        {/* Group Image */}
+        <div className="relative w-full h-32 overflow-hidden">
+          <Image 
+            src={imageUrl || getDefaultImage()}
+            alt={name}
+            fill
+            className="object-cover"
+          />
+          {rank && (
+            <div className="absolute top-2 left-2 bg-black text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold z-10">
+              #{rank}
+            </div>
+          )}
+        </div>
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <CardTitle className="text-xl">{name}</CardTitle>
