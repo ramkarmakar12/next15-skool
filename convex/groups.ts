@@ -6,7 +6,10 @@ export const create = mutation({
     args: { 
         name: v.string(), 
         description: v.optional(v.string()),
-        isPublic: v.optional(v.boolean())
+        isPublic: v.optional(v.boolean()),
+        category: v.optional(v.string()), // Add category to the validator
+        price: v.optional(v.number()),
+        memberNumber: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -376,4 +379,29 @@ export const updateSubscriptionById = internalMutation({
             endsOn: endsOn
         });
     },
+});
+
+export const getPublicGroups = query({
+  handler: async (ctx) => {
+    const groups = await ctx.db
+      .query("groups")
+      .withIndex("by_isPublic", (q) => q.eq("isPublic", true))
+      .collect();
+
+    // Add member count to each group
+    const groupsWithMemberCount = await Promise.all(
+      groups.map(async (group, index) => {
+        // Add a rank to the top groups (for display purposes)
+        const rank = index < 6 ? index + 1 : undefined;
+        
+        return {
+          ...group,
+          rank
+        };
+      })
+    );
+
+    // Sort groups by member count (descending)
+    return groupsWithMemberCount.sort((a, b) => b.memberNumber - a.memberNumber);
+  },
 });

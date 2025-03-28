@@ -22,11 +22,13 @@ export default defineSchema({
         isPublic: v.optional(v.boolean()), 
         endsOn: v.optional(v.number()),
         subscriptionId: v.optional(v.string()),
+        category: v.optional(v.string()), // Added category field
     })
         .index("by_name", ["name"])
         .index("by_ownerId", ["ownerId"])
         .index("by_subscriptionId", ["subscriptionId"])
-        .index("by_isPublic", ["isPublic"]), 
+        .index("by_isPublic", ["isPublic"])
+        .index("by_category", ["category"]), // Added index for category
     userGroups: defineTable({
         userId: v.id("users"),
         groupId: v.id("groups"),
