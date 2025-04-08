@@ -133,6 +133,9 @@ export const addToGroup = mutation({
 });
 
 // Create an invitation
+// Import the api at the top of your file
+import { api } from "./_generated/api";
+
 export const createInvitation = mutation({
     args: {
         email: v.string(),
@@ -215,7 +218,7 @@ export const createInvitation = mutation({
 
         try {
             // Get the application URL from environment or default to localhost
-            const appUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+            const appUrl = process.env.NEXT_PUBLIC_HOSTING_URL || "http://localhost:3000";
             
             // Create the invitation link that the email recipient will use
             const invitationLink = `${appUrl}/${groupId}?invitation=${invitationId}`;
@@ -223,38 +226,23 @@ export const createInvitation = mutation({
             // Log information about the invitation for debugging
             console.log("Creating invitation with link:", invitationLink);
             
-            // For Convex HTTP endpoints, we can make direct HTTP requests
-            // This works in both development and production environments
-            await fetch("https://abundant-gecko-931.convex.cloud/api/email/sendInvitationEmail", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    to: email,
-                    inviterName: currentUser.name,
-                    groupName: group.name,
-                    invitationLink
-                })
-            }).then(async (response) => {
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to send email: ${errorText}`);
-                }
-                return response.json();
-            }).then((result) => {
-                if (result.success) {
-                    // Mark the invitation as having had an email sent
-                    ctx.db.patch(invitationId, {
-                        emailSent: true
-                    });
-                    console.log("Email sent successfully to:", email);
-                } else {
-                    console.error("Email API returned error:", result.error);
-                }
+            // Schedule the email sending action
+            // In the createInvitation mutation, ensure proper API reference
+            await ctx.scheduler.runAfter(0, api.email.sendInvitationEmail, {
+                to: email,
+                inviterName: currentUser.name,
+                groupName: group.name,
+                invitationLink // Make sure this link is properly formatted
             });
+            
+            // Mark the invitation as having had an email scheduled
+            await ctx.db.patch(invitationId, {
+                emailSent: true
+            });
+            
+            console.log("Email scheduled for invitation:", invitationId);
         } catch (error) {
-            console.error("Error sending invitation email:", error);
+            console.error("Error scheduling invitation email:", error);
             // We still return success since the invitation was created
             // The email sending is treated as a non-critical operation
         }
