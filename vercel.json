@@ -1,0 +1,8 @@
+{
+    "build": {
+      "env": {
+        "VERCEL_LOG": "debug"
+      }
+    }
+  }
+  
